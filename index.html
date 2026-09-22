@@ -557,6 +557,24 @@ th{color:var(--muted);font-weight:500}
   });
 
   let connected = false;
+  /* ---------- Notifiche locali (appuntamenti e rapportini nuovi) ---------- */
+  const notifSupported = ("Notification" in window) && ("serviceWorker" in navigator);
+  function ensureNotifPermission(){
+    if(!notifSupported) return;
+    try{ if(Notification.permission==="default") Notification.requestPermission().catch(()=>{}); }catch(e){}
+  }
+  function showLocalNotification(title, body){
+    if(!notifSupported) return;
+    try{
+      if(Notification.permission!=="granted") return;
+      navigator.serviceWorker.getRegistration().then(reg=>{
+        if(reg) reg.showNotification(title, {body, icon:"icon-192.png", badge:"icon-192.png"});
+      }).catch(()=>{});
+    }catch(e){}
+  }
+  let knownApptIds = null, knownReportIds = null;
+  const justCreatedLocally = new Set();
+
   function useSharedDB(shared, note){
     if(connected) return; // il primo archivio che risponde vince (evita doppie sottoscrizioni)
     connected = true;
@@ -569,10 +587,43 @@ th{color:var(--muted);font-weight:500}
     ccol.onSnapshot(snap => { clients = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderClients(); }, ()=>{});
     ocol.onSnapshot(snap => { ops = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderOperators(); }, ()=>{});
     mcol.onSnapshot(snap => { mezzi = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderMezzi(); }, ()=>{});
-    apcol.onSnapshot(snap => { appts = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderAppointments(); }, ()=>{});
+    apcol.onSnapshot(snap => {
+      const newAppts = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+      if(knownApptIds===null){
+        knownApptIds = new Set(newAppts.map(a=>a.id));
+      } else {
+        newAppts.forEach(a=>{
+          if(!knownApptIds.has(a.id)){
+            knownApptIds.add(a.id);
+            if(!justCreatedLocally.has(a.id)){
+              const quando=[a.data?fmtDate(a.data):"", a.ora].filter(Boolean).join(" ");
+              showLocalNotification("Nuovo appuntamento", [a.cliente, quando].filter(Boolean).join(" – ")||"È stato aggiunto un nuovo appuntamento");
+            }
+            justCreatedLocally.delete(a.id);
+          }
+        });
+      }
+      appts = newAppts; renderAppointments();
+    }, ()=>{});
     $("#storeNote").textContent = note;
     col.onSnapshot(snap => {
-      reports = snap.docs.filter(d=>d.exists!==false).map(d => Object.assign({id:d.id}, d.data()));
+      const newReports = snap.docs.filter(d=>d.exists!==false).map(d => Object.assign({id:d.id}, d.data()));
+      if(knownReportIds===null){
+        knownReportIds = new Set(newReports.map(r=>r.id));
+      } else if(isOwner()){
+        newReports.forEach(r=>{
+          if(!knownReportIds.has(r.id)){
+            knownReportIds.add(r.id);
+            if(!justCreatedLocally.has(r.id)){
+              showLocalNotification("Nuovo rapportino", [r.cliente, r.operatori].filter(Boolean).join(" – ")||"È stato aggiunto un nuovo rapportino");
+            }
+            justCreatedLocally.delete(r.id);
+          }
+        });
+      } else {
+        newReports.forEach(r=>knownReportIds.add(r.id));
+      }
+      reports = newReports;
       if(isOwner()){
         render();
         if(viewingId && !$("#viewDetail").classList.contains("hidden")) showDetail(viewingId);
@@ -1103,6 +1154,7 @@ th{color:var(--muted);font-weight:500}
     const a={id:editingAppt||("a"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
       data:AP("data").value, ora:AP("ora").value, cliente:AP("cliente").value.trim(), luogo:AP("luogo").value.trim(),
       operatori:apptFormOperatori.join(", "), note:AP("note").value.trim(), modificato:Date.now()};
+    justCreatedLocally.add(a.id);
     try{ await persistAppt(a); toast(editingAppt?"Appuntamento salvato":"Appuntamento aggiunto"); resetApptForm(); }
     catch(e){ toast("Salvataggio non riuscito. Riprova."); }
   };
@@ -1191,6 +1243,7 @@ th{color:var(--muted);font-weight:500}
       foto: formPhotos.slice()
     };
     EXTRA.forEach(k=>r[k]=String(F(k).value).trim());
+    justCreatedLocally.add(r.id);
     const b=$("#saveBtn"); b.disabled=true;
     try{ await persist(r); toast("Rapportino salvato"); if(isOwner()) showDetail(r.id, r); else openNew(); }
     catch(e){ toast(e && e.code==="quota_exceeded" ? "Archivio pieno: elimina qualche rapportino vecchio." : "Salvataggio non riuscito. Riprova."); }
@@ -1414,6 +1467,7 @@ th{color:var(--muted);font-weight:500}
   renderOperators();
   renderMezzi();
   renderAppointments();
+  ensureNotifPermission();
   if(isOwner()){
     render();
   } else {
