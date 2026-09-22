@@ -1148,10 +1148,6 @@ th{color:var(--muted);font-weight:500}
   function sortedAppts(){
     return [...appts].sort((a,b)=> (a.data||"").localeCompare(b.data||"") || (a.ora||"").localeCompare(b.ora||""));
   }
-  function hasUpcomingAppts(){
-    const t=today();
-    return appts.some(a=>(a.data||"")>=t);
-  }
   function renderAppointments(){
     renderApptOperatoriPicker();
     const list=$("#apList"); if(!list) return;
@@ -1509,8 +1505,7 @@ th{color:var(--muted);font-weight:500}
       const n=(prompt("Come ti chiami? (nome e cognome)")||"").trim();
       if(n) setWorkerName(n);
     }
-    if(hasUpcomingAppts()){ resetApptForm(); renderAppointments(); go("Appts"); }
-    else { openNew(); }
+    openNew();
   }
 })();
 </script>
