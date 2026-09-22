@@ -51,6 +51,12 @@ header.top h1{font-size:1.6rem;flex:1}
 .btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
 .btn.danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger)}
 header.top .btn.ghost{color:var(--bg);border-color:rgba(255,255,255,.35)}
+.iconbtn{width:44px;padding:0;font-size:1.3rem;line-height:1;flex:none}
+.dropdown{position:absolute;top:100%;left:16px;margin-top:8px;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.2);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:10;min-width:200px}
+.dropdown.hidden{display:none!important}
+.dropdown .btn{width:100%;justify-content:flex-start;text-align:left;color:var(--ink);border-radius:6px;background:transparent;border:0}
+header.top .dropdown .btn.ghost{color:var(--ink);border-color:transparent}
+.dropdown .btn:hover{background:var(--field)}
 
 /* Riepilogo */
 .summary{display:flex;gap:24px;align-items:baseline;flex-wrap:wrap;margin:8px 0 16px}
@@ -131,7 +137,6 @@ th{color:var(--muted);font-weight:500}
 }
 @media (max-width:600px){
   header.top .bar{flex-wrap:wrap}
-  header.top h1{flex:1 1 100%}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 @media print{
@@ -143,16 +148,19 @@ th{color:var(--muted);font-weight:500}
 <body>
 <header class="top">
   <div class="bar">
+    <button class="btn ghost iconbtn ownerOnly" id="menuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">☰</button>
     <h1>Rapportini</h1>
+    <button class="btn ghost" id="apptsBtn" type="button">Appuntamenti</button>
+    <button class="btn primary ownerOnly" id="newBtn" type="button">Nuovo</button>
+  </div>
+  <div class="tape" aria-hidden="true"></div>
+  <nav class="dropdown hidden" id="menuDropdown">
     <button class="btn ghost ownerOnly" id="clientsBtn" type="button">Clienti</button>
     <button class="btn ghost ownerOnly" id="opBtn" type="button">Operatori</button>
     <button class="btn ghost ownerOnly" id="mezziBtn" type="button">Mezzi</button>
     <button class="btn ghost ownerOnly" id="statsBtn" type="button">Statistiche</button>
-    <button class="btn ghost" id="apptsBtn" type="button">Appuntamenti</button>
-    <button class="btn ghost ownerOnly" id="exportBtn" type="button">CSV</button>
-    <button class="btn primary ownerOnly" id="newBtn" type="button">Nuovo</button>
-  </div>
-  <div class="tape" aria-hidden="true"></div>
+    <button class="btn ghost ownerOnly" id="exportBtn" type="button">Esporta CSV</button>
+  </nav>
 </header>
 
 <main class="wrap">
@@ -746,11 +754,33 @@ th{color:var(--muted);font-weight:500}
   function go(v){
     ["List","Form","Detail","Clients","Operators","Mezzi","Stats","Appts"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
     if(isOwner()){
-      ["#newBtn","#exportBtn","#clientsBtn","#opBtn","#mezziBtn","#statsBtn","#apptsBtn"].forEach(s=>$(s).classList.toggle("hidden", v!=="List"));
+      ["#newBtn","#menuBtn","#apptsBtn"].forEach(s=>$(s).classList.toggle("hidden", v!=="List"));
     }
+    closeMenu();
     window.scrollTo(0,0);
   }
   document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{ if(isOwner()) go("List"); else openNew(); }));
+
+  /* ---------- Menu a tendina ---------- */
+  const menuBtn = $("#menuBtn"), menuDropdown = $("#menuDropdown");
+  function closeMenu(){
+    if(!menuDropdown) return;
+    menuDropdown.classList.add("hidden");
+    if(menuBtn) menuBtn.setAttribute("aria-expanded","false");
+  }
+  function toggleMenu(){
+    if(!menuDropdown) return;
+    const open = !menuDropdown.classList.contains("hidden");
+    if(open){ closeMenu(); } else { menuDropdown.classList.remove("hidden"); menuBtn.setAttribute("aria-expanded","true"); }
+  }
+  if(menuBtn){
+    menuBtn.addEventListener("click", e=>{ e.stopPropagation(); toggleMenu(); });
+    document.addEventListener("click", e=>{
+      if(!menuDropdown.classList.contains("hidden") && !menuDropdown.contains(e.target) && e.target!==menuBtn) closeMenu();
+    });
+    document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeMenu(); });
+    menuDropdown.addEventListener("click", e=>{ if(e.target.closest("button")) setTimeout(closeMenu,0); });
+  }
 
   /* ---------- Lista ---------- */
   function filtered(){
