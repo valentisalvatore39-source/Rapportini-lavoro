@@ -148,6 +148,7 @@ th{color:var(--muted);font-weight:500}
     <button class="btn ghost ownerOnly" id="opBtn" type="button">Operatori</button>
     <button class="btn ghost ownerOnly" id="mezziBtn" type="button">Mezzi</button>
     <button class="btn ghost ownerOnly" id="statsBtn" type="button">Statistiche</button>
+    <button class="btn ghost" id="apptsBtn" type="button">Appuntamenti</button>
     <button class="btn ghost ownerOnly" id="exportBtn" type="button">CSV</button>
     <button class="btn primary ownerOnly" id="newBtn" type="button">Nuovo</button>
   </div>
@@ -369,6 +370,37 @@ th{color:var(--muted);font-weight:500}
     <div class="sec"><h3>Mezzi</h3><div id="mList"></div></div>
   </section>
 
+  <!-- APPUNTAMENTI -->
+  <section id="viewAppts" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sheet">
+      <h2 id="apTitle">Nuovo appuntamento</h2>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="ap_data">Data</label><input id="ap_data" type="date"></div>
+        <div><label for="ap_ora">Ora</label><input id="ap_ora" type="time"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="ap_cliente">Cliente</label><input id="ap_cliente" list="clientiList" autocomplete="off" placeholder="Scrivi o scegli dalla rubrica"></div>
+        <div><label for="ap_luogo">Indirizzo</label><input id="ap_luogo" autocomplete="off"></div>
+      </div>
+      <div style="margin-top:12px">
+        <label>Operatori</label>
+        <div class="checks" id="apptOperatoriPicker"></div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="ap_note">Note / lavoro da svolgere</label>
+        <textarea id="ap_note" placeholder="Cosa fare, dettagli utili"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="apDel">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost hidden" type="button" id="apCancel">Annulla modifica</button>
+        <button class="btn primary" type="button" id="apSave">Aggiungi appuntamento</button>
+      </div>
+    </div>
+    <div class="sec"><h3>Appuntamenti in programma</h3><div id="apList"></div></div>
+  </section>
+
   <!-- STATISTICHE -->
   <section id="viewStats" class="hidden">
     <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
@@ -484,6 +516,10 @@ th{color:var(--muted);font-weight:500}
   const LSM="rapportini.mezzi.v1";
   let mezzi=[], mcol=null, editingMezzo=null;
   try{ mezzi=JSON.parse(localStorage.getItem(LSM)||"[]"); }catch(e){}
+  const LSAP="rapportini.appuntamenti.v1";
+  let appts=[], apcol=null, editingAppt=null;
+  let apptFormOperatori=[];
+  try{ appts=JSON.parse(localStorage.getItem(LSAP)||"[]"); }catch(e){}
   const LS_IVA="rapportini.iva.v1";
   function loadIva(){ const raw=localStorage.getItem(LS_IVA); if(raw===null||raw==="") return 22; const v=Number(raw); return isFinite(v)&&v>=0?v:22; }
   let ivaPct = loadIva();
@@ -529,9 +565,11 @@ th{color:var(--muted);font-weight:500}
     ccol = db.collection("clienti");
     ocol = db.collection("operatori");
     mcol = db.collection("mezzi");
+    apcol = db.collection("appuntamenti");
     ccol.onSnapshot(snap => { clients = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderClients(); }, ()=>{});
     ocol.onSnapshot(snap => { ops = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderOperators(); }, ()=>{});
     mcol.onSnapshot(snap => { mezzi = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderMezzi(); }, ()=>{});
+    apcol.onSnapshot(snap => { appts = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderAppointments(); }, ()=>{});
     $("#storeNote").textContent = note;
     col.onSnapshot(snap => {
       reports = snap.docs.filter(d=>d.exists!==false).map(d => Object.assign({id:d.id}, d.data()));
@@ -587,6 +625,15 @@ th{color:var(--muted);font-weight:500}
   async function removeMezzo(id){
     if(mcol) await mcol.doc(id).delete();
     else { mezzi=mezzi.filter(x=>x.id!==id); try{ localStorage.setItem(LSM, JSON.stringify(mezzi)); }catch(e){} renderMezzi(); }
+  }
+  async function persistAppt(a){
+    if(apcol){ const d=Object.assign({},a); delete d.id; await apcol.doc(a.id).set(d); }
+    else { const i=appts.findIndex(x=>x.id===a.id); if(i>=0) appts[i]=a; else appts.push(a);
+      try{ localStorage.setItem(LSAP, JSON.stringify(appts)); }catch(e){} renderAppointments(); }
+  }
+  async function removeAppt(id){
+    if(apcol) await apcol.doc(id).delete();
+    else { appts=appts.filter(x=>x.id!==id); try{ localStorage.setItem(LSAP, JSON.stringify(appts)); }catch(e){} renderAppointments(); }
   }
   async function persist(r){
     if(col){
@@ -646,9 +693,9 @@ th{color:var(--muted);font-weight:500}
 
   /* ---------- Viste ---------- */
   function go(v){
-    ["List","Form","Detail","Clients","Operators","Mezzi","Stats"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
+    ["List","Form","Detail","Clients","Operators","Mezzi","Stats","Appts"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
     if(isOwner()){
-      ["#newBtn","#exportBtn","#clientsBtn","#opBtn","#mezziBtn","#statsBtn"].forEach(s=>$(s).classList.toggle("hidden", v!=="List"));
+      ["#newBtn","#exportBtn","#clientsBtn","#opBtn","#mezziBtn","#statsBtn","#apptsBtn"].forEach(s=>$(s).classList.toggle("hidden", v!=="List"));
     }
     window.scrollTo(0,0);
   }
@@ -1005,6 +1052,68 @@ th{color:var(--muted);font-weight:500}
     try{ await removeMezzo(editingMezzo); toast("Mezzo eliminato"); resetMezzoForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
   };
 
+  /* ---------- Appuntamenti ---------- */
+  const AP = id => $("#ap_"+id);
+  function renderApptOperatoriPicker(){
+    const el=$("#apptOperatoriPicker"); if(!el) return;
+    const names=[...new Set(ops.map(o=>o.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+    apptFormOperatori.forEach(n=>{ if(n && !names.includes(n)) names.push(n); });
+    if(!names.length){ el.innerHTML='<div class="s">Nessun operatore in rubrica. Aggiungili da "Operatori".</div>'; return; }
+    el.innerHTML=names.map(n=>`<label class="chk"><input type="checkbox" value="${esc(n)}" ${apptFormOperatori.includes(n)?"checked":""}> ${esc(n)}</label>`).join("");
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener("change",()=>{
+      apptFormOperatori=[...el.querySelectorAll('input[type="checkbox"]:checked')].map(c=>c.value);
+    }));
+  }
+  function sortedAppts(){
+    return [...appts].sort((a,b)=> (a.data||"").localeCompare(b.data||"") || (a.ora||"").localeCompare(b.ora||""));
+  }
+  function renderAppointments(){
+    renderApptOperatoriPicker();
+    const list=$("#apList"); if(!list) return;
+    const oggi=today();
+    const items=sortedAppts();
+    if(!items.length){ list.innerHTML='<div class="empty"><p>Nessun appuntamento in programma. Aggiungine uno qui sopra.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+items.map(a=>{
+      const passato = a.data && a.data<oggi;
+      return `<button class="item" type="button" data-aid="${esc(a.id)}" style="grid-template-columns:64px 1fr auto${passato?';opacity:.55':''}">
+        <div class="date"><b>${a.data?a.data.slice(8,10):"--"}</b><span>${a.data?MESI[+a.data.slice(5,7)-1]:""}</span></div>
+        <div style="min-width:0"><div class="t">${esc(a.cliente||"(senza cliente)")}</div><div class="s">${esc(a.luogo||"")}</div>${a.operatori?`<div class="s">${esc(a.operatori)}</div>`:""}${a.note?`<div class="s">${esc(a.note)}</div>`:""}</div>
+        <div class="s">${esc(a.ora||"")}</div></button>`;
+    }).join("")+'</div>';
+    list.querySelectorAll("[data-aid]").forEach(b=>b.onclick=()=>editAppt(b.dataset.aid));
+  }
+  function resetApptForm(){
+    editingAppt=null; AP("data").value=today(); AP("ora").value=""; AP("cliente").value=""; AP("luogo").value=""; AP("note").value="";
+    apptFormOperatori=[]; renderApptOperatoriPicker();
+    $("#apTitle").textContent="Nuovo appuntamento"; $("#apSave").textContent="Aggiungi appuntamento";
+    $("#apDel").classList.add("hidden"); $("#apCancel").classList.add("hidden");
+  }
+  function editAppt(id){
+    const a=appts.find(x=>x.id===id); if(!a) return; editingAppt=id;
+    AP("data").value=a.data||""; AP("ora").value=a.ora||""; AP("cliente").value=a.cliente||""; AP("luogo").value=a.luogo||""; AP("note").value=a.note||"";
+    apptFormOperatori=(a.operatori||"").split(",").map(s=>s.trim()).filter(Boolean); renderApptOperatoriPicker();
+    $("#apTitle").textContent="Modifica appuntamento"; $("#apSave").textContent="Salva modifiche";
+    $("#apDel").classList.remove("hidden"); $("#apCancel").classList.remove("hidden");
+    window.scrollTo(0,0); AP("data").focus();
+  }
+  $("#apptsBtn").onclick=()=>{ resetApptForm(); renderAppointments(); go("Appts"); };
+  $("#apCancel").onclick=resetApptForm;
+  $("#apSave").onclick=async()=>{
+    if(!AP("data").value){ toast("Inserisci la data."); AP("data").focus(); return; }
+    const a={id:editingAppt||("a"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+      data:AP("data").value, ora:AP("ora").value, cliente:AP("cliente").value.trim(), luogo:AP("luogo").value.trim(),
+      operatori:apptFormOperatori.join(", "), note:AP("note").value.trim(), modificato:Date.now()};
+    try{ await persistAppt(a); toast(editingAppt?"Appuntamento salvato":"Appuntamento aggiunto"); resetApptForm(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  };
+  $("#apDel").onclick=async()=>{
+    if(!editingAppt||!confirm("Eliminare questo appuntamento?")) return;
+    try{ await removeAppt(editingAppt); toast("Appuntamento eliminato"); resetApptForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+  AP("cliente").addEventListener("change",()=>{
+    const c=findClient(AP("cliente").value); if(c && !AP("luogo").value && c.ind) AP("luogo").value=c.ind;
+  });
+
   /* ---------- Foto ---------- */
   let formPhotos = [];
   const MAX_PHOTOS = 6;
@@ -1304,6 +1413,7 @@ th{color:var(--muted);font-weight:500}
   renderClients();
   renderOperators();
   renderMezzi();
+  renderAppointments();
   if(isOwner()){
     render();
   } else {
