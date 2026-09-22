@@ -185,7 +185,10 @@ th{color:var(--muted);font-weight:500}
         </div>
         <div class="grid" style="margin-top:12px">
           <div><label for="f_luogo">Cantiere / indirizzo</label><input id="f_luogo" autocomplete="off"></div>
-          <div><label for="f_operatori">Operatori</label><input id="f_operatori" list="operatoriList" autocomplete="off" placeholder="es. Rossi, Bianchi"><datalist id="operatoriList"></datalist></div>
+        </div>
+        <div style="margin-top:12px">
+          <label>Operatori</label>
+          <div class="checks" id="operatoriPicker"></div>
         </div>
         <div class="grid" style="margin-top:12px">
           <div><label for="f_tipo">Tipo intervento</label><select id="f_tipo">
@@ -476,6 +479,7 @@ th{color:var(--muted);font-weight:500}
   try{ clients=JSON.parse(localStorage.getItem(LSC)||"[]"); }catch(e){}
   const LSO="rapportini.operatori.v1";
   let ops=[], ocol=null, editingOp=null;
+  let formOperatori=[];
   try{ ops=JSON.parse(localStorage.getItem(LSO)||"[]"); }catch(e){}
   const LSM="rapportini.mezzi.v1";
   let mezzi=[], mcol=null, editingMezzo=null;
@@ -754,7 +758,8 @@ th{color:var(--muted);font-weight:500}
     F("dico").checked=!!r.dico;
     document.querySelectorAll("[data-ver]").forEach(c=>c.checked=(r.verifiche||[]).includes(VERIFICHE[+c.dataset.ver]));
     F("data").value=r.data||today(); F("cliente").value=r.cliente||""; F("luogo").value=r.luogo||"";
-    F("operatori").value=r.operatori||""; F("inizio").value=r.inizio||""; F("fine").value=r.fine||"";
+    formOperatori=(r.operatori||"").split(",").map(s=>s.trim()).filter(Boolean); renderOperatoriPicker();
+    F("inizio").value=r.inizio||""; F("fine").value=r.fine||"";
     F("pausa").value=r.pausa??0; F("desc").value=r.desc||""; F("note").value=r.note||"";
     setStato(r.stato||"completato");
     $("#matList").innerHTML=""; (r.materiali||[]).forEach(addMatRow); updMatTotal();
@@ -844,9 +849,25 @@ th{color:var(--muted);font-weight:500}
     });
     return out;
   }
-  function renderOperators(){
+  function renderOperatoriPicker(){
+    const el=$("#operatoriPicker"); if(!el) return;
     const names=[...new Set(ops.map(o=>o.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
-    $("#operatoriList").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
+    formOperatori.forEach(n=>{ if(n && !names.includes(n)) names.push(n); });
+    if(!names.length){ el.innerHTML='<div class="s">Nessun operatore in rubrica. Aggiungili da "Operatori".</div>'; return; }
+    el.innerHTML=names.map(n=>`<label class="chk"><input type="checkbox" value="${esc(n)}" ${formOperatori.includes(n)?"checked":""}> ${esc(n)}</label>`).join("");
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener("change", onOperatoriChange));
+  }
+  function onOperatoriChange(){
+    formOperatori=[...$("#operatoriPicker").querySelectorAll('input[type="checkbox"]:checked')].map(c=>c.value);
+    if(formOperatori.length===1){
+      const rate=findOperatorRate(formOperatori[0]);
+      if(rate!=null && (!F("tariffa").value || F("tariffa").dataset.auto==="1")){
+        F("tariffa").value=rate; F("tariffa").dataset.auto="1"; updHours();
+      }
+    }
+  }
+  function renderOperators(){
+    renderOperatoriPicker();
     if(typeof renderScadenzeBanner==="function") try{ renderScadenzeBanner(); }catch(e){}
     if(!isOwner()) return;
     const list=$("#oList"), sorted=[...ops].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","it"));
@@ -891,16 +912,6 @@ th{color:var(--muted);font-weight:500}
     if(!editingOp||!confirm("Eliminare l'operatore dall'elenco? I rapportini già fatti restano.")) return;
     try{ await removeOperator(editingOp); toast("Operatore eliminato"); resetOperatorForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
   };
-  F("operatori").addEventListener("change",()=>{
-    const nomi=F("operatori").value.split(",").map(s=>s.trim()).filter(Boolean);
-    if(nomi.length===1){
-      const rate=findOperatorRate(nomi[0]);
-      if(rate!=null && (!F("tariffa").value || F("tariffa").dataset.auto==="1")){
-        F("tariffa").value=rate; F("tariffa").dataset.auto="1"; updHours();
-      }
-    }
-  });
-
   /* ---------- Mezzi ---------- */
   const M = id => $("#m_"+id);
   function findMezzoByName(name){ const n=(name||"").trim().toLowerCase(); return mezzi.find(m=>(m.nome||"").toLowerCase()===n); }
@@ -1051,7 +1062,7 @@ th{color:var(--muted);font-weight:500}
     const r={
       id: editingId||uid(), numero: (old && old.numero) ? old.numero : nextNumero(F("data").value),
       data:F("data").value, cliente:F("cliente").value.trim(), luogo:F("luogo").value.trim(),
-      operatori:F("operatori").value.trim(), inizio:F("inizio").value, fine:F("fine").value, pausa:Number(F("pausa").value)||0,
+      operatori:formOperatori.join(", "), inizio:F("inizio").value, fine:F("fine").value, pausa:Number(F("pausa").value)||0,
       desc:F("desc").value, note:F("note").value.trim(), stato, materiali,
       firma: sigDirty ? sig.toDataURL("image/png") : (sigData||""),
       creato: old && old.creato ? old.creato : Date.now(), modificato: Date.now(),
