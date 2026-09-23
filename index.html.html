@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rapportini di lavoro</title>
+<meta name="description" content="Rapportini di lavoro per impianti elettrici: clienti, operatori, materiali, costi e IVA.">
+<meta name="theme-color" content="#1E2A32">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rapportini">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0EC; --paper:#FFFFFF; --ink:#1E2A32; --muted:#5E6B73; --line:#CDD3D0;
+  --hivis:#F4C400; --hivis-ink:#1E2A32; --ok:#2E7D4F; --warn:#B4530B; --danger:#B3261E;
+  --field:#F7F8F6;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#151B1F; --paper:#1E262B; --ink:#E7ECEA; --muted:#98A5AC; --line:#34414A;
+    --hivis:#F4C400; --hivis-ink:#151B1F; --ok:#5DBB86; --warn:#F09A4E; --danger:#F07A72; --field:#182025;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151B1F; --paper:#1E262B; --ink:#E7ECEA; --muted:#98A5AC; --line:#34414A;
+  --hivis:#F4C400; --hivis-ink:#151B1F; --ok:#5DBB86; --warn:#F09A4E; --danger:#F07A72; --field:#182025;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;font-weight:700;line-height:1.1;margin:0}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--hivis);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px 96px}
+
+/* Testata: striscia ad alta visibilità come nastro di cantiere */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);color:var(--bg)}
+header.top .bar{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+header.top h1{font-size:1.6rem;flex:1}
+.tape{height:8px;background:repeating-linear-gradient(-45deg,var(--hivis) 0 14px,var(--ink) 14px 28px)}
+.btn{border:0;border-radius:6px;padding:10px 16px;font-weight:600;cursor:pointer;min-height:44px}
+.btn.primary{background:var(--hivis);color:var(--hivis-ink)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger)}
+header.top .btn.ghost{color:var(--bg);border-color:rgba(255,255,255,.35)}
+.iconbtn{width:44px;padding:0;font-size:1.3rem;line-height:1;flex:none}
+.dropdown{position:absolute;top:100%;left:16px;margin-top:8px;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.2);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:10;min-width:200px}
+.dropdown.hidden{display:none!important}
+.dropdown .btn{width:100%;justify-content:flex-start;text-align:left;color:var(--ink);border-radius:6px;background:transparent;border:0}
+header.top .dropdown .btn.ghost{color:var(--ink);border-color:transparent}
+.dropdown .btn:hover{background:var(--field)}
+
+/* Riepilogo */
+.summary{display:flex;gap:24px;align-items:baseline;flex-wrap:wrap;margin:8px 0 16px}
+.summary .hours{font-family:"Barlow Condensed",sans-serif;font-size:3rem;font-weight:700;line-height:1}
+.summary .sub{color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.filters input,.filters select{flex:1 1 180px}
+
+input,textarea,select{width:100%;background:var(--field);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;min-height:44px}
+textarea{min-height:110px;resize:vertical}
+label{display:block;font-weight:600;font-size:.92rem;margin-bottom:4px}
+
+/* Lista */
+.list{display:flex;flex-direction:column;gap:0;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.item{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
+.item:last-child{border-bottom:0}
+.item:hover{background:var(--field)}
+.date{font-family:"Barlow Condensed",sans-serif;text-align:center;line-height:1}
+.date b{display:block;font-size:1.8rem}
+.date span{font-size:.9rem;color:var(--muted)}
+.item .t{font-weight:600}
+.item .s{color:var(--muted);font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .h{font-family:"Barlow Condensed",sans-serif;font-size:1.4rem;font-weight:700;text-align:right}
+.pill{display:inline-block;font-size:.8rem;font-weight:600;padding:1px 8px;border-radius:99px;border:1.5px solid currentColor;margin-left:6px}
+.pill.open{color:var(--warn)} .pill.done{color:var(--ok)} .pill.danger{color:var(--danger)}
+.empty{padding:40px 20px;text-align:center;background:var(--paper);border:1.5px dashed var(--line);border-radius:8px}
+.empty p{color:var(--muted);margin:8px 0 16px}
+
+/* Modulo */
+.sheet{background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:20px}
+.sheet h2{font-size:1.9rem;margin-bottom:4px}
+.sec{margin-top:24px}
+.sec h3{font-size:1.25rem;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.calc{display:flex;align-items:baseline;gap:8px;margin-top:10px;color:var(--muted)}
+.calc b{font-family:"Barlow Condensed",sans-serif;font-size:1.6rem;color:var(--ink)}
+.mat{display:grid;grid-template-columns:1fr 64px 64px 84px 44px;gap:8px;margin-bottom:8px}
+.mat .x{background:none;border:1.5px solid var(--line);border-radius:6px;cursor:pointer;min-height:44px}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--field);padding:10px;cursor:pointer;min-height:44px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 12px}
+label.chk{display:flex;align-items:center;gap:10px;font-weight:500;min-height:44px;margin:0;cursor:pointer}
+label.chk input{width:22px;height:22px;min-height:0;accent-color:var(--ink);flex:none}
+.sig{border:1.5px dashed var(--line);border-radius:6px;background:var(--field);touch-action:none;width:100%;height:160px;display:block}
+.sigrow{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:var(--muted);font-size:.9rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+.actions .grow{flex:1}
+
+/* Foto */
+.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.photothumb{position:relative;width:84px;height:84px;border-radius:6px;overflow:hidden;border:1.5px solid var(--line)}
+.photothumb img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+.photothumb .x{position:absolute;top:2px;right:2px;width:22px;height:22px;min-height:0;border:0;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;cursor:pointer;line-height:1;font-size:.8rem}
+.photogrid{display:flex;flex-wrap:wrap;gap:8px}
+.photogrid img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1.5px solid var(--line);cursor:pointer}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:20;padding:20px}
+.lightbox img{max-width:100%;max-height:100%;border-radius:6px}
+.lightbox.hidden{display:none!important}
+
+/* Dettaglio */
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500}
+.desc{white-space:pre-wrap}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500}
+.sigimg{max-width:280px;width:100%;border-bottom:1.5px solid var(--ink);background:#fff;border-radius:4px}
+.back{background:none;border:0;color:var(--muted);cursor:pointer;padding:8px 0;margin-bottom:8px;font-weight:600;min-height:44px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:6px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.note{color:var(--muted);font-size:.88rem;margin-top:12px}
+.hidden{display:none!important}
+@media (max-width:520px){
+  .kv{grid-template-columns:1fr} .kv dt{margin-top:6px}
+  .mat{grid-template-columns:1fr 52px 52px 66px 40px}
+  .item{grid-template-columns:56px 1fr auto}
+}
+@media (max-width:600px){
+  header.top .bar{flex-wrap:wrap}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media print{
+  header.top,.back,.actions,.toast{display:none!important}
+  body{background:#fff;color:#000} .sheet{border:0;padding:0}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <button class="btn ghost iconbtn ownerOnly" id="menuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">☰</button>
+    <h1>Rapportini</h1>
+    <button class="btn ghost" id="apptsBtn" type="button">Appuntamenti</button>
+    <button class="btn primary ownerOnly" id="newBtn" type="button">Nuovo</button>
+  </div>
+  <div class="tape" aria-hidden="true"></div>
+  <nav class="dropdown hidden" id="menuDropdown">
+    <button class="btn ghost ownerOnly" id="clientsBtn" type="button">Clienti</button>
+    <button class="btn ghost ownerOnly" id="opBtn" type="button">Operatori</button>
+    <button class="btn ghost ownerOnly" id="mezziBtn" type="button">Mezzi</button>
+    <button class="btn ghost ownerOnly" id="statsBtn" type="button">Statistiche</button>
+    <button class="btn ghost ownerOnly" id="exportBtn" type="button">Esporta CSV</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <!-- LISTA -->
+  <section id="viewList">
+    <div id="scadenzeBanner" class="hidden"></div>
+    <div class="summary">
+      <div><span class="hours" id="sumHours">0</span> <span class="sub">ore</span></div>
+      <div><span class="hours" id="sumTotale">€ 0,00</span> <span class="sub">totale (IVA incl.)</span></div>
+      <div class="sub" id="sumCount">Nessun rapportino</div>
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Cerca cliente, cantiere, commessa…" aria-label="Cerca">
+      <select id="month" aria-label="Mese"></select>
+      <div style="flex:0 1 90px"><label for="ivaPct" style="font-size:.8rem;margin-bottom:2px">IVA %</label><input id="ivaPct" type="number" min="0" max="100" step="0.5" value="22" inputmode="decimal"></div>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- MODULO -->
+  <section id="viewForm" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna all'elenco</button>
+    <form class="sheet" id="form" onsubmit="return false">
+      <h2 id="formTitle">Nuovo rapportino</h2>
+
+      <div class="sec">
+        <h3>Intervento</h3>
+        <div class="grid">
+          <div><label for="f_data">Data</label><input id="f_data" type="date" required></div>
+          <div><label for="f_cliente">Cliente</label><input id="f_cliente" list="clientiList" autocomplete="off" required placeholder="Scrivi o scegli dalla rubrica"><datalist id="clientiList"></datalist></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <div><label for="f_luogo">Cantiere / indirizzo</label><input id="f_luogo" autocomplete="off"></div>
+        </div>
+        <div style="margin-top:12px">
+          <label>Operatori</label>
+          <div class="checks" id="operatoriPicker"></div>
+        </div>
+        <div class="grid ownerOnly" style="margin-top:12px">
+          <div><label for="f_compilatore">Compilato da</label><input id="f_compilatore" autocomplete="off" placeholder="Nome di chi ha fatto il rapportino"><div class="s" style="color:var(--muted);font-size:.85rem;margin-top:4px">Impostato in automatico per gli operai; modificalo qui solo per correggere o per i rapportini vecchi.</div></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <div><label for="f_tipo">Tipo intervento</label><select id="f_tipo">
+            <option>Nuova installazione</option><option>Installazione climatizzatore</option><option>Manutenzione</option><option>Guasto / riparazione</option>
+            <option>Ampliamento / modifica</option><option>Verifica / collaudo</option><option>Sopralluogo</option></select></div>
+          <div><label for="f_impianto">Impianto</label><select id="f_impianto">
+            <option>Civile</option><option>Terziario / commerciale</option><option>Industriale</option>
+            <option>Fotovoltaico</option><option>Quadro elettrico</option><option>Illuminazione</option>
+            <option>Dati / citofonia / TVCC</option><option>Allarme / antintrusione</option><option>Ricarica auto</option></select></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <div><label for="f_ordine">N. ordine / commessa</label><input id="f_ordine" autocomplete="off"></div>
+          <div><label for="f_km">Km percorsi</label><input id="f_km" type="number" min="0" inputmode="numeric"></div>
+          <div><label for="f_mezzo">Mezzo</label><input id="f_mezzo" list="mezziList" autocomplete="off" placeholder="es. Furgone EX123YZ"><datalist id="mezziList"></datalist></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Orario</h3>
+        <div class="grid">
+          <div><label for="f_inizio">Inizio</label><input id="f_inizio" type="time"></div>
+          <div><label for="f_fine">Fine</label><input id="f_fine" type="time"></div>
+          <div><label for="f_pausa">Pausa (minuti)</label><input id="f_pausa" type="number" min="0" step="5" value="0" inputmode="numeric"></div>
+          <div class="ownerOnly"><label for="f_tariffa">Tariffa oraria (€/h)</label><input id="f_tariffa" type="number" min="0" step="0.5" inputmode="decimal" placeholder="es. 30"><div class="s" id="tariffaHint" style="color:var(--muted);font-size:.85rem;margin-top:4px"></div></div>
+        </div>
+        <div class="calc">Ore lavorate <b id="f_ore">0:00</b> <span id="f_oreNote"></span></div>
+        <div class="calc ownerOnly">Costo manodopera <b id="f_costo">€ 0,00</b></div>
+      </div>
+
+      <div class="sec">
+        <h3>Lavori eseguiti</h3>
+        <label for="f_desc" class="hidden">Descrizione</label>
+        <textarea id="f_desc" placeholder="Cosa è stato fatto, problemi riscontrati, cosa resta da fare"></textarea>
+      </div>
+
+      <div class="sec">
+        <h3>Verifiche e misure</h3>
+        <div class="checks" id="checks"></div>
+        <div class="grid" style="margin-top:12px">
+          <div><label for="f_iso">Isolamento (MΩ)</label><input id="f_iso" type="number" min="0" step="any" inputmode="decimal"></div>
+          <div><label for="f_terra">Resistenza di terra (Ω)</label><input id="f_terra" type="number" min="0" step="any" inputmode="decimal"></div>
+          <div><label for="f_diff">Intervento differenziale (ms)</label><input id="f_diff" type="number" min="0" step="any" inputmode="decimal"></div>
+        </div>
+        <label class="chk" style="margin-top:12px"><input type="checkbox" id="f_dico"> Da rilasciare Dichiarazione di Conformità (DiCo)</label>
+      </div>
+
+      <div class="sec">
+        <h3>Materiali</h3>
+        <div id="matList"></div><datalist id="um"><option value="pz"><option value="m"><option value="rotolo"><option value="conf"></datalist>
+        <div class="calc">Totale materiali <b id="matTotale">€ 0,00</b></div>
+        <button class="btn ghost" type="button" id="addMat">Aggiungi materiale</button>
+      </div>
+
+      <div class="sec">
+        <h3>Foto (prima/dopo, impianto, targhetta quadro)</h3>
+        <input type="file" id="f_fotoInput" accept="image/*" capture="environment" multiple style="margin-bottom:8px">
+        <div class="photos" id="photoList"></div>
+        <div class="s" id="photoCount" style="color:var(--muted);margin-top:6px"></div>
+      </div>
+
+      <div class="sec hidden" id="climaSec">
+        <h3>Climatizzatore installato</h3>
+        <div class="grid">
+          <div><label for="f_climaMarca">Marca</label><input id="f_climaMarca" autocomplete="off"></div>
+          <div><label for="f_climaModello">Modello</label><input id="f_climaModello" autocomplete="off"></div>
+          <div><label for="f_climaMatricola">Matricola</label><input id="f_climaMatricola" autocomplete="off"></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <div><label for="f_climaTipoImpianto">Tipo impianto</label><select id="f_climaTipoImpianto">
+            <option value="">—</option><option>Monosplit</option><option>Multisplit</option><option>Canalizzato</option><option>Cassetta</option><option>Altro</option></select></div>
+          <div><label for="f_climaUnitaInterne">N. unità interne</label><input id="f_climaUnitaInterne" type="number" min="0" inputmode="numeric"></div>
+          <div><label for="f_climaPotenza">Potenza (kW o BTU)</label><input id="f_climaPotenza" autocomplete="off" placeholder="es. 3,5 kW / 12000 BTU"></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <div><label for="f_climaGasTipo">Gas refrigerante</label><select id="f_climaGasTipo">
+            <option value="">—</option><option>R32</option><option>R410A</option><option>R290</option><option>R407C</option><option>Altro</option></select></div>
+          <div><label for="f_climaGasQta">Quantità gas (kg)</label><input id="f_climaGasQta" type="number" min="0" step="any" inputmode="decimal"></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Stato</h3>
+        <div class="seg" role="group" aria-label="Stato del lavoro">
+          <button type="button" data-stato="completato" aria-pressed="true">Completato</button>
+          <button type="button" data-stato="da completare" aria-pressed="false">Da completare</button>
+        </div>
+        <div style="margin-top:12px"><label for="f_note">Note</label><input id="f_note" autocomplete="off"></div>
+      </div>
+
+      <div class="sec">
+        <h3>Firma del cliente</h3>
+        <canvas id="sig" class="sig" aria-label="Area firma: disegna con il dito o il mouse"></canvas>
+        <div class="sigrow"><span>Firma con il dito o il mouse</span><button class="btn ghost" type="button" id="sigClear">Cancella firma</button></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="delBtn">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost" type="button" data-go="list">Annulla</button>
+        <button class="btn primary" type="button" id="saveBtn">Salva rapportino</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- CLIENTI -->
+  <section id="viewClients" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sheet">
+      <h2 id="cTitle">Nuovo cliente</h2>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="c_nome">Nome o ragione sociale</label><input id="c_nome" autocomplete="off"></div>
+        <div><label for="c_tel">Telefono</label><input id="c_tel" type="tel" autocomplete="off"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="c_ind">Indirizzo</label><input id="c_ind" autocomplete="off"></div>
+        <div><label for="c_email">Email</label><input id="c_email" type="email" autocomplete="off"></div>
+        <div><label for="c_piva">P. IVA / Cod. fiscale</label><input id="c_piva" autocomplete="off"></div>
+      </div>
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="cDel">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost hidden" type="button" id="cCancel">Annulla modifica</button>
+        <button class="btn primary" type="button" id="cSave">Aggiungi cliente</button>
+      </div>
+    </div>
+    <div class="sec"><h3>Rubrica clienti</h3><div id="cList"></div></div>
+  </section>
+
+  <!-- OPERATORI -->
+  <section id="viewOperators" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sheet">
+      <h2 id="oTitle">Nuovo operatore</h2>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="o_nome">Nome</label><input id="o_nome" autocomplete="off"></div>
+        <div><label for="o_tariffa">Tariffa oraria (€/h)</label><input id="o_tariffa" type="number" min="0" step="0.5" inputmode="decimal"></div>
+        <div><label for="o_tel">Telefono</label><input id="o_tel" type="tel" autocomplete="off"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="o_corsoSicurezza">Scadenza corso sicurezza</label><input id="o_corsoSicurezza" type="date"></div>
+        <div><label for="o_visitaMedica">Scadenza visita medica</label><input id="o_visitaMedica" type="date"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="o_patentinoPes">Scadenza patentino PES/PAV/PEI</label><input id="o_patentinoPes" type="date"></div>
+        <div><label for="o_patentinoFgas">Scadenza patentino F-gas</label><input id="o_patentinoFgas" type="date"></div>
+      </div>
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="oDel">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost hidden" type="button" id="oCancel">Annulla modifica</button>
+        <button class="btn primary" type="button" id="oSave">Aggiungi operatore</button>
+      </div>
+    </div>
+    <div class="sec"><h3>Operatori</h3><div id="oList"></div></div>
+  </section>
+
+  <!-- MEZZI -->
+  <section id="viewMezzi" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sheet">
+      <h2 id="mTitle">Nuovo mezzo</h2>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="m_nome">Mezzo (nome o descrizione)</label><input id="m_nome" autocomplete="off" placeholder="es. Furgone EX123YZ"></div>
+        <div><label for="m_targa">Targa</label><input id="m_targa" autocomplete="off"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="m_revisione">Scadenza revisione</label><input id="m_revisione" type="date"></div>
+        <div><label for="m_assicurazione">Scadenza assicurazione</label><input id="m_assicurazione" type="date"></div>
+        <div><label for="m_bollo">Scadenza bollo</label><input id="m_bollo" type="date"></div>
+      </div>
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="mDel">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost hidden" type="button" id="mCancel">Annulla modifica</button>
+        <button class="btn primary" type="button" id="mSave">Aggiungi mezzo</button>
+      </div>
+    </div>
+    <div class="sec"><h3>Mezzi</h3><div id="mList"></div></div>
+  </section>
+
+  <!-- APPUNTAMENTI -->
+  <section id="viewAppts" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sec" style="margin-top:0"><h3>Appuntamenti in programma</h3><div id="apList"></div></div>
+    <div class="sheet" style="margin-top:24px">
+      <h2 id="apTitle">Nuovo appuntamento</h2>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="ap_data">Data</label><input id="ap_data" type="date"></div>
+        <div><label for="ap_ora">Ora</label><input id="ap_ora" type="time"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="ap_cliente">Cliente</label><input id="ap_cliente" list="clientiList" autocomplete="off" placeholder="Scrivi o scegli dalla rubrica"></div>
+        <div><label for="ap_luogo">Indirizzo</label><input id="ap_luogo" autocomplete="off"></div>
+      </div>
+      <div style="margin-top:12px">
+        <label>Operatori</label>
+        <div class="checks" id="apptOperatoriPicker"></div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="ap_note">Note / lavoro da svolgere</label>
+        <textarea id="ap_note" placeholder="Cosa fare, dettagli utili"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="apDel">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost hidden" type="button" id="apCancel">Annulla modifica</button>
+        <button class="btn primary" type="button" id="apSave">Aggiungi appuntamento</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATISTICHE -->
+  <section id="viewStats" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sheet">
+      <h2>Statistiche mensili</h2>
+      <div class="seg" role="group" aria-label="Metrica" style="margin-top:12px">
+        <button type="button" data-metric="ore" aria-pressed="true">Ore lavorate</button>
+        <button type="button" data-metric="fatturato" aria-pressed="false">Fatturato</button>
+      </div>
+      <div id="statsChart" style="margin-top:16px;overflow-x:auto"></div>
+    </div>
+    <div class="sec"><h3>Dettaglio per mese</h3><div style="overflow-x:auto"><table id="statsTable"></table></div></div>
+  </section>
+
+  <!-- DETTAGLIO -->
+  <section id="viewDetail" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna all'elenco</button>
+    <article class="sheet" id="detail"></article>
+    <div class="actions">
+      <span class="grow"></span>
+      <button class="btn ghost" type="button" id="shareWaBtn">WhatsApp</button>
+      <button class="btn ghost" type="button" id="shareMailBtn">Email</button>
+      <button class="btn ghost" type="button" id="shareOtherBtn">Condividi</button>
+      <button class="btn ghost" type="button" id="printBtn">Stampa</button>
+      <button class="btn primary" type="button" id="editBtn">Modifica</button>
+    </div>
+  </section>
+  <p class="note" id="storeNote"></p>
+  <p class="note">
+    <a href="#" id="changeUserLink" style="color:inherit">Cambia utente</a>
+    <a href="#" id="ownerToggle" style="color:inherit;margin-left:14px">Accesso titolare</a>
+  </p>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+  // ---------- Sincronizzazione centrale (Firebase) ----------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBbnlUSS2Im_93Wi7IhxQMKwy-OU7if2EQ",
+    authDomain: "rapportini-lavori-elettrici.firebaseapp.com",
+    projectId: "rapportini-lavori-elettrici",
+    storageBucket: "rapportini-lavori-elettrici.firebasestorage.app",
+    messagingSenderId: "547315265697",
+    appId: "1:547315265697:web:f923034f6cb648761580e0"
+  };
+
+  try{
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    let fdb;
+    try{
+      fdb = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() }) });
+    }catch(e){
+      const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js");
+      fdb = getFirestore(app);
+    }
+
+    function wrapCollection(name){
+      const colRef = collection(fdb, name);
+      return {
+        doc(id){
+          const ref = doc(fdb, name, String(id));
+          return { set:(data)=>setDoc(ref, data), delete:()=>deleteDoc(ref) };
+        },
+        onSnapshot(cb, errCb){
+          return onSnapshot(colRef, snap => {
+            cb({ docs: snap.docs.map(d => ({ id:d.id, exists:true, data:()=>d.data() })) });
+          }, errCb || (()=>{}));
+        }
+      };
+    }
+
+    onAuthStateChanged(auth, user => {
+      if(user){
+        window.__firebaseDB = { collection: wrapCollection };
+        window.dispatchEvent(new Event("firebase-ready"));
+      }
+    });
+    signInAnonymously(auth).catch(err => {
+      console.error("Firebase: accesso non riuscito", err);
+      window.dispatchEvent(new Event("firebase-error"));
+    });
+  }catch(e){
+    console.error("Firebase: inizializzazione non riuscita", e);
+    window.dispatchEvent(new Event("firebase-error"));
+  }
+</script>
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const LS_KEY = "rapportini.v1";
+  let reports = [];         // array di rapportini
+  let db = null, col = null;
+  let editingId = null, viewingId = null;
+  let stato = "completato";
+  let sigDirty = false, sigData = "";
+
+  /* ---------- Archivio ---------- */
+  function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch(e){ return []; } }
+  function lsSave(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(reports)); }catch(e){} }
+
+  const LSC="rapportini.clienti.v1";
+  let clients=[], ccol=null, editingClient=null;
+  try{ clients=JSON.parse(localStorage.getItem(LSC)||"[]"); }catch(e){}
+  const LSO="rapportini.operatori.v1";
+  let ops=[], ocol=null, editingOp=null;
+  let formOperatori=[];
+  try{ ops=JSON.parse(localStorage.getItem(LSO)||"[]"); }catch(e){}
+  const LSM="rapportini.mezzi.v1";
+  let mezzi=[], mcol=null, editingMezzo=null;
+  try{ mezzi=JSON.parse(localStorage.getItem(LSM)||"[]"); }catch(e){}
+  const LSAP="rapportini.appuntamenti.v1";
+  let appts=[], apcol=null, editingAppt=null;
+  let apptFormOperatori=[];
+  try{ appts=JSON.parse(localStorage.getItem(LSAP)||"[]"); }catch(e){}
+  const LS_IVA="rapportini.iva.v1";
+  function loadIva(){ const raw=localStorage.getItem(LS_IVA); if(raw===null||raw==="") return 22; const v=Number(raw); return isFinite(v)&&v>=0?v:22; }
+  let ivaPct = loadIva();
+  reports = lsLoad();
+  $("#storeNote").textContent = "Salvataggio su questo dispositivo.";
+
+  /* ---------- Titolare / operaio ---------- */
+  const OWNER_KEY = "rapportini.owner.v1";
+  const OWNER_CODE = "10111990";
+  const WORKER_NAME_KEY = "rapportini.workerName.v1";
+  function isOwner(){ try{ return localStorage.getItem(OWNER_KEY) === "1"; }catch(e){ return false; } }
+  function getWorkerName(){ try{ return localStorage.getItem(WORKER_NAME_KEY) || ""; }catch(e){ return ""; } }
+  function setWorkerName(n){ try{ localStorage.setItem(WORKER_NAME_KEY, n); }catch(e){} }
+  if(!isOwner()){ document.querySelectorAll(".ownerOnly").forEach(el=>el.classList.add("hidden")); }
+  $("#changeUserLink").classList.toggle("hidden", isOwner());
+  $("#ownerToggle").textContent = isOwner() ? "Passa a modalità operaio" : "Accesso titolare";
+  $("#ownerToggle").addEventListener("click", e=>{
+    e.preventDefault();
+    if(isOwner()){
+      if(confirm("Tornare alla vista operaio su questo dispositivo?")){
+        try{ localStorage.removeItem(OWNER_KEY); }catch(err){}
+        location.reload();
+      }
+    } else {
+      const code=(prompt("Codice titolare:")||"").trim();
+      if(!code) return;
+      if(code===OWNER_CODE){ try{ localStorage.setItem(OWNER_KEY,"1"); }catch(err){} location.reload(); }
+      else toast("Codice errato");
+    }
+  });
+  $("#changeUserLink").addEventListener("click", e=>{
+    e.preventDefault();
+    const n=(prompt("Il tuo nome e cognome:", getWorkerName())||"").trim();
+    if(n){ setWorkerName(n); toast("Utente impostato: "+n); if(!isOwner()) openNew(); }
+  });
+
+  let connected = false;
+  /* ---------- Notifiche locali (appuntamenti e rapportini nuovi) ---------- */
+  const notifSupported = ("Notification" in window) && ("serviceWorker" in navigator);
+  function ensureNotifPermission(){
+    if(!notifSupported) return;
+    try{ if(Notification.permission==="default") Notification.requestPermission().catch(()=>{}); }catch(e){}
+  }
+  function showLocalNotification(title, body){
+    if(!notifSupported) return;
+    try{
+      if(Notification.permission!=="granted") return;
+      navigator.serviceWorker.getRegistration().then(reg=>{
+        if(reg) reg.showNotification(title, {body, icon:"icon-192.png", badge:"icon-192.png"});
+      }).catch(()=>{});
+    }catch(e){}
+  }
+  let knownApptIds = null, knownReportIds = null;
+  const justCreatedLocally = new Set();
+
+  function useSharedDB(shared, note){
+    if(connected) return; // il primo archivio che risponde vince (evita doppie sottoscrizioni)
+    connected = true;
+    db = shared;
+    col = db.collection("rapportini");
+    ccol = db.collection("clienti");
+    ocol = db.collection("operatori");
+    mcol = db.collection("mezzi");
+    apcol = db.collection("appuntamenti");
+    ccol.onSnapshot(snap => { clients = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderClients(); }, ()=>{});
+    ocol.onSnapshot(snap => { ops = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderOperators(); }, ()=>{});
+    mcol.onSnapshot(snap => { mezzi = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderMezzi(); }, ()=>{});
+    apcol.onSnapshot(snap => {
+      const newAppts = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+      if(knownApptIds===null){
+        knownApptIds = new Set(newAppts.map(a=>a.id));
+      } else {
+        newAppts.forEach(a=>{
+          if(!knownApptIds.has(a.id)){
+            knownApptIds.add(a.id);
+            if(!justCreatedLocally.has(a.id)){
+              const quando=[a.data?fmtDate(a.data):"", a.ora].filter(Boolean).join(" ");
+              showLocalNotification("Nuovo appuntamento", [a.cliente, quando].filter(Boolean).join(" – ")||"È stato aggiunto un nuovo appuntamento");
+            }
+            justCreatedLocally.delete(a.id);
+          }
+        });
+      }
+      appts = newAppts; renderAppointments();
+    }, ()=>{});
+    $("#storeNote").textContent = note;
+    col.onSnapshot(snap => {
+      const newReports = snap.docs.filter(d=>d.exists!==false).map(d => Object.assign({id:d.id}, d.data()));
+      if(knownReportIds===null){
+        knownReportIds = new Set(newReports.map(r=>r.id));
+      } else if(isOwner()){
+        newReports.forEach(r=>{
+          if(!knownReportIds.has(r.id)){
+            knownReportIds.add(r.id);
+            if(!justCreatedLocally.has(r.id)){
+              showLocalNotification("Nuovo rapportino", [r.cliente, r.operatori].filter(Boolean).join(" – ")||"È stato aggiunto un nuovo rapportino");
+            }
+            justCreatedLocally.delete(r.id);
+          }
+        });
+      } else {
+        newReports.forEach(r=>knownReportIds.add(r.id));
+      }
+      reports = newReports;
+      if(isOwner()){
+        render();
+        if(viewingId && !$("#viewDetail").classList.contains("hidden")) showDetail(viewingId);
+      }
+    }, err => { toast("Sincronizzazione interrotta: i dati restano visibili ma non si aggiornano."); });
+  }
+  (function connect(){
+    // Due possibili archivi condivisi, usati dal primo che risponde:
+    // - Firebase (rapportini-lavori-elettrici): usato su GitHub Pages / app installata,
+    //   dove tutti i dispositivi (anche quello del titolare) vedono gli stessi rapportini.
+    // - window.claude.use("db"): sincronizzazione interna, disponibile solo dentro
+    //   l'anteprima artifact di Claude (qui gli script esterni come Firebase sono bloccati).
+    const NOTE_SHARED = "Rapportini condivisi con il team: sincronizzati automaticamente tra tutti i telefoni.";
+    if(window.__firebaseDB){ useSharedDB(window.__firebaseDB, NOTE_SHARED); }
+    else {
+      window.addEventListener("firebase-ready", ()=>useSharedDB(window.__firebaseDB, NOTE_SHARED), {once:true});
+    }
+    (async function tryClaudeDb(){
+      try{
+        if(!window.claude || !window.claude.use) return;
+        const cdb = await window.claude.use("db");
+        if(cdb) useSharedDB(cdb, "Rapportini salvati online e sincronizzati (anteprima).");
+      }catch(e){}
+    })();
+  })();
+
+  async function persistClient(c){
+    if(ccol){ const d=Object.assign({},c); delete d.id; await ccol.doc(c.id).set(d); }
+    else { const i=clients.findIndex(x=>x.id===c.id); if(i>=0) clients[i]=c; else clients.push(c);
+      try{ localStorage.setItem(LSC, JSON.stringify(clients)); }catch(e){} renderClients(); }
+  }
+  async function removeClient(id){
+    if(ccol) await ccol.doc(id).delete();
+    else { clients=clients.filter(x=>x.id!==id); try{ localStorage.setItem(LSC, JSON.stringify(clients)); }catch(e){} renderClients(); }
+  }
+  async function persistOperator(o){
+    if(ocol){ const d=Object.assign({},o); delete d.id; await ocol.doc(o.id).set(d); }
+    else { const i=ops.findIndex(x=>x.id===o.id); if(i>=0) ops[i]=o; else ops.push(o);
+      try{ localStorage.setItem(LSO, JSON.stringify(ops)); }catch(e){} renderOperators(); }
+  }
+  async function removeOperator(id){
+    if(ocol) await ocol.doc(id).delete();
+    else { ops=ops.filter(x=>x.id!==id); try{ localStorage.setItem(LSO, JSON.stringify(ops)); }catch(e){} renderOperators(); }
+  }
+  async function persistMezzo(m){
+    if(mcol){ const d=Object.assign({},m); delete d.id; await mcol.doc(m.id).set(d); }
+    else { const i=mezzi.findIndex(x=>x.id===m.id); if(i>=0) mezzi[i]=m; else mezzi.push(m);
+      try{ localStorage.setItem(LSM, JSON.stringify(mezzi)); }catch(e){} renderMezzi(); }
+  }
+  async function removeMezzo(id){
+    if(mcol) await mcol.doc(id).delete();
+    else { mezzi=mezzi.filter(x=>x.id!==id); try{ localStorage.setItem(LSM, JSON.stringify(mezzi)); }catch(e){} renderMezzi(); }
+  }
+  async function persistAppt(a){
+    if(apcol){ const d=Object.assign({},a); delete d.id; await apcol.doc(a.id).set(d); }
+    else { const i=appts.findIndex(x=>x.id===a.id); if(i>=0) appts[i]=a; else appts.push(a);
+      try{ localStorage.setItem(LSAP, JSON.stringify(appts)); }catch(e){} renderAppointments(); }
+  }
+  async function removeAppt(id){
+    if(apcol) await apcol.doc(id).delete();
+    else { appts=appts.filter(x=>x.id!==id); try{ localStorage.setItem(LSAP, JSON.stringify(appts)); }catch(e){} renderAppointments(); }
+  }
+  async function persist(r){
+    if(col){
+      const data = Object.assign({}, r); delete data.id;
+      try{ await col.doc(r.id).set(data); }
+      catch(e){
+        if(e && e.code==="unavailable"){ await new Promise(res=>setTimeout(res,600+Math.random()*600)); await col.doc(r.id).set(data); }
+        else throw e;
+      }
+    } else {
+      const i = reports.findIndex(x=>x.id===r.id);
+      if(i>=0) reports[i]=r; else reports.push(r);
+      lsSave(); render();
+    }
+  }
+  async function remove(id){
+    if(col){ await col.doc(id).delete(); }
+    else { reports = reports.filter(x=>x.id!==id); lsSave(); render(); }
+  }
+
+  /* ---------- Utilità ---------- */
+  const MESI = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+  const MESI_LUNGHI = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  function minutesOf(r){
+    if(!r.inizio || !r.fine) return 0;
+    const [h1,m1]=r.inizio.split(":").map(Number), [h2,m2]=r.fine.split(":").map(Number);
+    let m = (h2*60+m2)-(h1*60+m1); if(m<0) m += 1440; // turno a cavallo della mezzanotte
+    return Math.max(0, m-(Number(r.pausa)||0));
+  }
+  const fmtHM = m => Math.floor(m/60)+":"+String(m%60).padStart(2,"0");
+  const fmtDec = m => (Math.round(m/60*100)/100).toLocaleString("it-IT");
+  const fmtMoneyDec = v => (Math.round((v||0)*100)/100).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtEUR = v => "€ "+fmtMoneyDec(v);
+  const costOf = r => minutesOf(r)/60*(Number(r.tariffa)||0);
+  const matCostOf = r => (r.materiali||[]).reduce((a,m)=>a+(Number(m.qta)||0)*(Number(m.prezzo)||0),0);
+  const totalCostOf = r => costOf(r)+matCostOf(r);
+  const netOf = r => totalCostOf(r);
+  const ivaOf = r => netOf(r)*(ivaPct/100);
+  const grossOf = r => netOf(r)+ivaOf(r);
+  const fmtPct = v => Number(v||0).toLocaleString("it-IT");
+  function fmtDate(d){ if(!d) return ""; const [y,mo,da]=d.split("-"); return da+"/"+mo+"/"+y; }
+  function esc(s){ const d=document.createElement("div"); d.textContent=s==null?"":String(s); return d.innerHTML; }
+  function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),2400); }
+  function today(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function uid(){ return "r"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function nextNumero(dataStr){
+    const y=(dataStr||today()).slice(0,4);
+    let max=0;
+    reports.forEach(r=>{
+      if(r.numero && r.numero.indexOf(y+"/")===0){
+        const n=parseInt(r.numero.split("/")[1],10);
+        if(isFinite(n) && n>max) max=n;
+      }
+    });
+    return y+"/"+String(max+1).padStart(3,"0");
+  }
+
+  /* ---------- Viste ---------- */
+  function go(v){
+    ["List","Form","Detail","Clients","Operators","Mezzi","Stats","Appts"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
+    if(isOwner()){
+      ["#newBtn","#menuBtn","#apptsBtn"].forEach(s=>$(s).classList.toggle("hidden", v!=="List"));
+    }
+    closeMenu();
+    window.scrollTo(0,0);
+  }
+  document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{ if(isOwner()) go("List"); else openNew(); }));
+
+  /* ---------- Menu a tendina ---------- */
+  const menuBtn = $("#menuBtn"), menuDropdown = $("#menuDropdown");
+  function closeMenu(){
+    if(!menuDropdown) return;
+    menuDropdown.classList.add("hidden");
+    if(menuBtn) menuBtn.setAttribute("aria-expanded","false");
+  }
+  function toggleMenu(){
+    if(!menuDropdown) return;
+    const open = !menuDropdown.classList.contains("hidden");
+    if(open){ closeMenu(); } else { menuDropdown.classList.remove("hidden"); menuBtn.setAttribute("aria-expanded","true"); }
+  }
+  if(menuBtn){
+    menuBtn.addEventListener("click", e=>{ e.stopPropagation(); toggleMenu(); });
+    document.addEventListener("click", e=>{
+      if(!menuDropdown.classList.contains("hidden") && !menuDropdown.contains(e.target) && e.target!==menuBtn) closeMenu();
+    });
+    document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeMenu(); });
+    menuDropdown.addEventListener("click", e=>{ if(e.target.closest("button")) setTimeout(closeMenu,0); });
+  }
+
+  /* ---------- Lista ---------- */
+  function filtered(){
+    const q = $("#q").value.trim().toLowerCase(), mo = $("#month").value;
+    return reports
+      .filter(r => !mo || (r.data||"").startsWith(mo))
+      .filter(r => !q || [r.cliente,r.luogo,r.operatori,r.desc,r.ordine,r.tipo,r.impianto].join(" ").toLowerCase().includes(q))
+      .sort((a,b)=> (b.data||"").localeCompare(a.data||"") || (b.inizio||"").localeCompare(a.inizio||""));
+  }
+  function renderMonths(){
+    const sel=$("#month"), cur=sel.value;
+    const set=[...new Set(reports.map(r=>(r.data||"").slice(0,7)).filter(Boolean))].sort().reverse();
+    sel.innerHTML='<option value="">Tutti i mesi</option>'+set.map(m=>{const [y,mm]=m.split("-");return `<option value="${m}">${MESI_LUNGHI[+mm-1]} ${y}</option>`}).join("");
+    if(set.includes(cur)) sel.value=cur;
+  }
+  function render(){
+    renderMonths();
+    if(typeof renderClients==="function") try{ renderClients(); }catch(e){}
+    if(typeof renderMezzi==="function") try{ renderMezzi(); }catch(e){}
+    const rows = filtered();
+    const tot = rows.reduce((a,r)=>a+minutesOf(r),0);
+    $("#sumHours").textContent = fmtHM(tot);
+    $("#sumTotale").textContent = fmtEUR(rows.reduce((a,r)=>a+grossOf(r),0));
+    $("#sumCount").textContent = rows.length ? rows.length+(rows.length===1?" rapportino":" rapportini") : "Nessun rapportino";
+    const list=$("#list");
+    if(!reports.length){
+      list.innerHTML='<div class="empty"><h2>Nessun rapportino ancora</h2><p>Registra il primo intervento: data, orari, lavori eseguiti e firma del cliente.</p><button class="btn primary" type="button" id="emptyNew">Crea il primo rapportino</button></div>';
+      $("#emptyNew").onclick=openNew; return;
+    }
+    if(!rows.length){ list.innerHTML='<div class="empty"><p>Nessun rapportino corrisponde alla ricerca.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+rows.map(r=>{
+      const [y,m,d]=(r.data||"--").split("-");
+      const done=r.stato!=="da completare";
+      return `<button class="item" type="button" data-id="${esc(r.id)}">
+        <div class="date"><b>${esc(d||"")}</b><span>${m?MESI[+m-1]:""} ${esc(y||"")}</span>${r.numero?`<span style="font-size:.68rem;color:var(--muted)">${esc(r.numero)}</span>`:""}</div>
+        <div style="min-width:0"><div class="t">${esc(r.cliente||"Senza cliente")}<span class="pill ${done?"done":"open"}">${done?"completato":"da completare"}</span></div>
+        <div class="s">${esc([r.tipo,r.luogo,r.operatori].filter(Boolean).join(" – ")||r.desc||"")}</div>
+        ${r.compilatore?`<div class="s">Compilato da: ${esc(r.compilatore)}</div>`:""}</div>
+        <div class="h">${fmtHM(minutesOf(r))}</div></button>`;
+    }).join("")+'</div>';
+    list.querySelectorAll(".item").forEach(b=>b.onclick=()=>showDetail(b.dataset.id));
+  }
+  $("#q").addEventListener("input",render);
+  $("#month").addEventListener("change",render);
+  $("#ivaPct").value = ivaPct;
+  $("#ivaPct").addEventListener("input",()=>{
+    const v=Number($("#ivaPct").value);
+    ivaPct = isFinite(v)&&v>=0?v:0;
+    try{ localStorage.setItem(LS_IVA, String(ivaPct)); }catch(e){}
+    render();
+  });
+
+  /* ---------- Modulo ---------- */
+  const F = id => $("#f_"+id);
+  function setStato(s){ stato=s; document.querySelectorAll("[data-stato]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.stato===s))); }
+  document.querySelectorAll("[data-stato]").forEach(b=>b.onclick=()=>setStato(b.dataset.stato));
+
+  function addMatRow(m={}){
+    const row=document.createElement("div"); row.className="mat";
+    row.innerHTML=`<input placeholder="es. Cavo FG16OR16 3G2,5" aria-label="Materiale" value="${esc(m.nome||"")}">
+      <input type="number" min="0" step="any" placeholder="Qtà" aria-label="Quantità" inputmode="decimal" value="${esc(m.qta||"")}">
+      <input placeholder="Unità" aria-label="Unità" list="um" value="${esc(m.um||"pz")}">
+      <input type="number" min="0" step="any" placeholder="Prezzo €" aria-label="Prezzo unitario" inputmode="decimal" value="${esc(m.prezzo||"")}">
+      <button class="x" type="button" aria-label="Rimuovi materiale">✕</button>`;
+    row.querySelector(".x").onclick=()=>{ row.remove(); updMatTotal(); };
+    $("#matList").appendChild(row);
+  }
+  $("#addMat").onclick=()=>{ addMatRow(); $("#matList").lastElementChild.querySelector("input").focus(); };
+  function formMatTotal(){
+    return [...$("#matList").children].reduce((a,row)=>{
+      const i=row.querySelectorAll("input");
+      return a+(Number(i[1].value)||0)*(Number(i[3].value)||0);
+    },0);
+  }
+  function updMatTotal(){
+    $("#matTotale").textContent=fmtEUR(formMatTotal());
+  }
+  $("#matList").addEventListener("input",updMatTotal);
+
+  function updHours(){
+    const m=minutesOf({inizio:F("inizio").value,fine:F("fine").value,pausa:F("pausa").value});
+    F("ore").textContent=fmtHM(m);
+    F("oreNote").textContent = m ? "("+fmtDec(m)+" h)" : "";
+    F("costo").textContent = fmtEUR(m/60*(Number(F("tariffa").value)||0));
+  }
+  ["inizio","fine","pausa","tariffa"].forEach(k=>F(k).addEventListener("input",updHours));
+  F("tariffa").addEventListener("input",()=>{ F("tariffa").dataset.auto=""; updTariffaHint(); });
+
+  const VERIFICHE=["Esame a vista","Continuità conduttori di protezione","Prova differenziali (tasto T)","Misura isolamento","Misura resistenza di terra","Prova funzionale","Verifica serraggi quadro","Etichettatura quadro"];
+  $("#checks").innerHTML=VERIFICHE.map((v,i)=>`<label class="chk"><input type="checkbox" data-ver="${i}"> ${v}</label>`).join("");
+  const EXTRA=["tipo","impianto","ordine","km","mezzo","iso","terra","diff","tariffa","climaMarca","climaModello","climaMatricola","climaTipoImpianto","climaUnitaInterne","climaPotenza","climaGasTipo","climaGasQta"];
+
+  const TIPO_CLIMA="Installazione climatizzatore";
+  function updClimaVis(){
+    const sec=$("#climaSec"); if(!sec) return;
+    sec.classList.toggle("hidden", F("tipo").value!==TIPO_CLIMA);
+  }
+  F("tipo").addEventListener("change", updClimaVis);
+
+  function fillForm(r){
+    F("tipo").value=r.tipo||"Nuova installazione"; F("impianto").value=r.impianto||"Civile";
+    ["ordine","km","mezzo","iso","terra","diff","tariffa","climaMarca","climaModello","climaMatricola","climaTipoImpianto","climaUnitaInterne","climaPotenza","climaGasTipo","climaGasQta"].forEach(k=>F(k).value=r[k]??"");
+    F("tariffa").dataset.auto="";
+    F("dico").checked=!!r.dico;
+    document.querySelectorAll("[data-ver]").forEach(c=>c.checked=(r.verifiche||[]).includes(VERIFICHE[+c.dataset.ver]));
+    F("data").value=r.data||today(); F("cliente").value=r.cliente||""; F("luogo").value=r.luogo||"";
+    if(F("compilatore")) F("compilatore").value=r.compilatore||"";
+    formOperatori=(r.operatori||"").split(",").map(s=>s.trim()).filter(Boolean); renderOperatoriPicker();
+    F("inizio").value=r.inizio||""; F("fine").value=r.fine||"";
+    F("pausa").value=r.pausa??0; F("desc").value=r.desc||""; F("note").value=r.note||"";
+    setStato(r.stato||"completato");
+    $("#matList").innerHTML=""; (r.materiali||[]).forEach(addMatRow); updMatTotal();
+    sigData=r.firma||""; sigDirty=false; setupSig();
+    formPhotos=(r.foto||[]).slice(); renderPhotoThumbs();
+    updClimaVis();
+    updTariffaHint();
+    updHours();
+  }
+  function openNew(){
+    editingId=null; $("#formTitle").textContent="Nuovo rapportino"; $("#delBtn").classList.add("hidden");
+    if(isOwner()){
+      const last = [...reports].sort((a,b)=>(b.data||"").localeCompare(a.data||""))[0];
+      fillForm({operatori: "", tariffa: last ? last.tariffa : ""});
+      F("tariffa").dataset.auto="1";
+    } else {
+      fillForm({operatori: "", tariffa: ""});
+    }
+    go("Form"); F("cliente").focus();
+  }
+  function openEdit(id){
+    const r=reports.find(x=>x.id===id); if(!r) return;
+    editingId=id; $("#formTitle").textContent="Modifica rapportino"; $("#delBtn").classList.remove("hidden");
+    go("Form"); fillForm(r);
+  }
+  $("#newBtn").onclick=openNew;
+
+  /* ---------- Clienti ---------- */
+  const C = id => $("#c_"+id);
+  function findClient(name){ const n=(name||"").trim().toLowerCase(); return clients.find(c=>(c.nome||"").toLowerCase()===n); }
+  function renderClients(){
+    const names=[...new Set(clients.map(c=>c.nome).concat(reports.map(r=>r.cliente)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+    $("#clientiList").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
+    if(!isOwner()) return;
+    const list=$("#cList"), sorted=[...clients].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","it"));
+    if(!sorted.length){ list.innerHTML='<div class="empty"><p>La rubrica è vuota. Aggiungi il primo cliente qui sopra: lo ritroverai già pronto quando compili un rapportino.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+sorted.map(c=>{
+      const n=reports.filter(r=>(r.cliente||"").toLowerCase()===(c.nome||"").toLowerCase()).length;
+      return `<button class="item" type="button" data-cid="${esc(c.id)}" style="grid-template-columns:1fr auto">
+        <div style="min-width:0"><div class="t">${esc(c.nome)}</div><div class="s">${esc([c.ind,c.tel].filter(Boolean).join(" – "))}</div></div>
+        <div class="s">${n} ${n===1?"rapportino":"rapportini"}</div></button>`;}).join("")+'</div>';
+    list.querySelectorAll("[data-cid]").forEach(b=>b.onclick=()=>editClient(b.dataset.cid));
+  }
+  function resetClientForm(){
+    editingClient=null; ["nome","tel","ind","email","piva"].forEach(k=>C(k).value="");
+    $("#cTitle").textContent="Nuovo cliente"; $("#cSave").textContent="Aggiungi cliente";
+    $("#cDel").classList.add("hidden"); $("#cCancel").classList.add("hidden");
+  }
+  function editClient(id){
+    const c=clients.find(x=>x.id===id); if(!c) return; editingClient=id;
+    ["nome","tel","ind","email","piva"].forEach(k=>C(k).value=c[k]||"");
+    $("#cTitle").textContent="Modifica cliente"; $("#cSave").textContent="Salva modifiche";
+    $("#cDel").classList.remove("hidden"); $("#cCancel").classList.remove("hidden");
+    window.scrollTo(0,0); C("nome").focus();
+  }
+  $("#clientsBtn").onclick=()=>{ resetClientForm(); renderClients(); go("Clients"); C("nome").focus(); };
+  $("#cCancel").onclick=resetClientForm;
+  $("#cSave").onclick=async()=>{
+    const nome=C("nome").value.trim();
+    if(!nome){ toast("Inserisci il nome del cliente."); C("nome").focus(); return; }
+    const dup=findClient(nome); if(dup && dup.id!==editingClient){ toast("Questo cliente è già in rubrica."); return; }
+    const c={id:editingClient||("c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), nome,
+      tel:C("tel").value.trim(), ind:C("ind").value.trim(), email:C("email").value.trim(), piva:C("piva").value.trim()};
+    try{ await persistClient(c); toast(editingClient?"Cliente salvato":"Cliente aggiunto"); resetClientForm(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  };
+  $("#cDel").onclick=async()=>{
+    if(!editingClient||!confirm("Eliminare il cliente dalla rubrica? I rapportini già fatti restano.")) return;
+    try{ await removeClient(editingClient); toast("Cliente eliminato"); resetClientForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+  F("cliente").addEventListener("change",()=>{
+    const c=findClient(F("cliente").value); if(c && !F("luogo").value && c.ind) F("luogo").value=c.ind;
+  });
+
+  /* ---------- Operatori ---------- */
+  const O = id => $("#o_"+id);
+  function findOperator(name){ const n=(name||"").trim().toLowerCase(); return ops.find(o=>(o.nome||"").toLowerCase()===n); }
+  function findOperatorRate(name){ const o=findOperator(name); return o && o.tariffa!==undefined && o.tariffa!==null && o.tariffa!=="" ? Number(o.tariffa) : null; }
+  const OP_SCADENZE={corsoSicurezza:"Corso sicurezza",visitaMedica:"Visita medica",patentinoPes:"Patentino PES/PAV/PEI",patentinoFgas:"Patentino F-gas"};
+  function operatorAlerts(){
+    const out=[];
+    ops.forEach(o=>{
+      Object.keys(OP_SCADENZE).forEach(k=>{
+        if(!o[k]) return;
+        const st=scadenzaStatus(o[k]);
+        if(st.giorni!==null && st.giorni<=30) out.push({chi:o.nome, tipo:OP_SCADENZE[k], data:o[k], giorni:st.giorni});
+      });
+    });
+    return out;
+  }
+  function renderOperatoriPicker(){
+    const el=$("#operatoriPicker"); if(!el) return;
+    const names=[...new Set(ops.map(o=>o.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+    formOperatori.forEach(n=>{ if(n && !names.includes(n)) names.push(n); });
+    if(!names.length){ el.innerHTML='<div class="s">Nessun operatore in rubrica. Aggiungili da "Operatori".</div>'; return; }
+    el.innerHTML=names.map(n=>`<label class="chk"><input type="checkbox" value="${esc(n)}" ${formOperatori.includes(n)?"checked":""}> ${esc(n)}</label>`).join("");
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener("change", onOperatoriChange));
+  }
+  function onOperatoriChange(){
+    formOperatori=[...$("#operatoriPicker").querySelectorAll('input[type="checkbox"]:checked')].map(c=>c.value);
+    updTariffaHint();
+    if(formOperatori.length && (!F("tariffa").value || F("tariffa").dataset.auto==="1")){
+      const rates=formOperatori.map(findOperatorRate).filter(r=>r!=null);
+      if(rates.length){
+        const sum=rates.reduce((a,b)=>a+b,0);
+        F("tariffa").value=sum; F("tariffa").dataset.auto="1"; updHours();
+      }
+    }
+  }
+  function updTariffaHint(){
+    const el=$("#tariffaHint"); if(!el) return;
+    if(formOperatori.length>1 && F("tariffa").dataset.auto==="1"){
+      el.textContent="Somma delle tariffe di "+formOperatori.length+" operatori";
+    } else {
+      el.textContent="";
+    }
+  }
+  function renderOperators(){
+    renderOperatoriPicker();
+    if(typeof renderScadenzeBanner==="function") try{ renderScadenzeBanner(); }catch(e){}
+    if(!isOwner()) return;
+    const list=$("#oList"), sorted=[...ops].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","it"));
+    if(!sorted.length){ list.innerHTML='<div class="empty"><p>Nessun operatore in elenco. Aggiungine uno qui sopra con la sua tariffa oraria: verrà proposta automaticamente quando lo indichi in un rapportino.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+sorted.map(o=>{
+      const badges=Object.keys(OP_SCADENZE).map(k=>{
+        if(!o[k]) return "";
+        const st=scadenzaStatus(o[k]);
+        return `<span class="pill ${st.cls}">${OP_SCADENZE[k]} ${fmtDate(o[k])}</span>`;
+      }).filter(Boolean).join(" ");
+      return `<button class="item" type="button" data-oid="${esc(o.id)}" style="grid-template-columns:1fr auto">
+        <div style="min-width:0"><div class="t">${esc(o.nome)}</div><div class="s">${esc(o.tel||"")}</div>${badges?`<div class="s" style="margin-top:4px">${badges}</div>`:""}</div>
+        <div class="s">${o.tariffa?fmtEUR(Number(o.tariffa))+"/h":"—"}</div></button>`;}).join("")+'</div>';
+    list.querySelectorAll("[data-oid]").forEach(b=>b.onclick=()=>editOperator(b.dataset.oid));
+  }
+  function resetOperatorForm(){
+    editingOp=null; ["nome","tariffa","tel","corsoSicurezza","visitaMedica","patentinoPes","patentinoFgas"].forEach(k=>O(k).value="");
+    $("#oTitle").textContent="Nuovo operatore"; $("#oSave").textContent="Aggiungi operatore";
+    $("#oDel").classList.add("hidden"); $("#oCancel").classList.add("hidden");
+  }
+  function editOperator(id){
+    const o=ops.find(x=>x.id===id); if(!o) return; editingOp=id;
+    ["nome","tariffa","tel","corsoSicurezza","visitaMedica","patentinoPes","patentinoFgas"].forEach(k=>O(k).value=o[k]??"");
+    $("#oTitle").textContent="Modifica operatore"; $("#oSave").textContent="Salva modifiche";
+    $("#oDel").classList.remove("hidden"); $("#oCancel").classList.remove("hidden");
+    window.scrollTo(0,0); O("nome").focus();
+  }
+  $("#opBtn").onclick=()=>{ resetOperatorForm(); renderOperators(); go("Operators"); O("nome").focus(); };
+  $("#oCancel").onclick=resetOperatorForm;
+  $("#oSave").onclick=async()=>{
+    const nome=O("nome").value.trim();
+    if(!nome){ toast("Inserisci il nome dell'operatore."); O("nome").focus(); return; }
+    const dup=findOperator(nome); if(dup && dup.id!==editingOp){ toast("Questo operatore è già in elenco."); return; }
+    const o={id:editingOp||("o"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), nome,
+      tariffa:O("tariffa").value.trim(), tel:O("tel").value.trim(),
+      corsoSicurezza:O("corsoSicurezza").value, visitaMedica:O("visitaMedica").value,
+      patentinoPes:O("patentinoPes").value, patentinoFgas:O("patentinoFgas").value};
+    try{ await persistOperator(o); toast(editingOp?"Operatore salvato":"Operatore aggiunto"); resetOperatorForm(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  };
+  $("#oDel").onclick=async()=>{
+    if(!editingOp||!confirm("Eliminare l'operatore dall'elenco? I rapportini già fatti restano.")) return;
+    try{ await removeOperator(editingOp); toast("Operatore eliminato"); resetOperatorForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+  /* ---------- Mezzi ---------- */
+  const M = id => $("#m_"+id);
+  function findMezzoByName(name){ const n=(name||"").trim().toLowerCase(); return mezzi.find(m=>(m.nome||"").toLowerCase()===n); }
+  function scadenzaStatus(d){
+    if(!d) return {cls:"", giorni:null};
+    const giorni = Math.floor((new Date(d+"T00:00:00") - new Date(new Date().toDateString()))/86400000);
+    if(giorni<0) return {cls:"danger", giorni};
+    if(giorni<=30) return {cls:"open", giorni};
+    return {cls:"done", giorni};
+  }
+  function mezziAlerts(){
+    const out=[];
+    mezzi.forEach(m=>{
+      ["revisione","assicurazione","bollo"].forEach(k=>{
+        if(!m[k]) return;
+        const st=scadenzaStatus(m[k]);
+        if(st.giorni!==null && st.giorni<=30) out.push({chi:m.nome, tipo:{revisione:"Revisione",assicurazione:"Assicurazione",bollo:"Bollo"}[k], data:m[k], giorni:st.giorni});
+      });
+    });
+    return out;
+  }
+  function allAlerts(){
+    return mezziAlerts().concat(typeof operatorAlerts==="function"?operatorAlerts():[]).sort((a,b)=>a.giorni-b.giorni);
+  }
+  function renderScadenzeBanner(){
+    const el=$("#scadenzeBanner"); if(!el) return;
+    if(!isOwner()){ el.classList.add("hidden"); el.innerHTML=""; return; }
+    const alerts=allAlerts();
+    if(!alerts.length){ el.classList.add("hidden"); el.innerHTML=""; return; }
+    el.classList.remove("hidden");
+    el.innerHTML='<div class="sec" style="margin-top:0;border:1.5px solid var(--warn);border-radius:8px;padding:14px 16px;background:var(--paper)">'
+      +'<h3 style="border:0;padding:0;margin:0 0 8px;color:var(--warn)">Scadenze in arrivo</h3>'
+      +'<ul style="margin:0;padding-left:18px">'+alerts.map(a=>`<li>${esc(a.chi)} – ${esc(a.tipo)}: ${a.giorni<0?"scaduta il "+fmtDate(a.data):"scade il "+fmtDate(a.data)+" (tra "+a.giorni+" giorni)"}</li>`).join("")+'</ul></div>';
+  }
+  function renderMezzi(){
+    const names=[...new Set(mezzi.map(m=>m.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+    $("#mezziList").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
+    renderScadenzeBanner();
+    if(!isOwner()) return;
+    const list=$("#mList"), sorted=[...mezzi].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","it"));
+    if(!sorted.length){ list.innerHTML='<div class="empty"><p>Nessun mezzo in elenco. Aggiungine uno qui sopra con le sue scadenze: ti avviserò quando si avvicinano.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+sorted.map(m=>{
+      const badges=["revisione","assicurazione","bollo"].map(k=>{
+        if(!m[k]) return "";
+        const st=scadenzaStatus(m[k]);
+        const lbl={revisione:"Revisione",assicurazione:"Assicurazione",bollo:"Bollo"}[k];
+        return `<span class="pill ${st.cls}">${lbl} ${fmtDate(m[k])}</span>`;
+      }).filter(Boolean).join(" ");
+      return `<button class="item" type="button" data-mid="${esc(m.id)}" style="grid-template-columns:1fr auto">
+        <div style="min-width:0"><div class="t">${esc(m.nome)}</div><div class="s">${esc(m.targa||"")}</div></div>
+        <div class="s" style="text-align:right">${badges||"—"}</div></button>`;
+    }).join("")+'</div>';
+    list.querySelectorAll("[data-mid]").forEach(b=>b.onclick=()=>editMezzo(b.dataset.mid));
+  }
+  function resetMezzoForm(){
+    editingMezzo=null; ["nome","targa","revisione","assicurazione","bollo"].forEach(k=>M(k).value="");
+    $("#mTitle").textContent="Nuovo mezzo"; $("#mSave").textContent="Aggiungi mezzo";
+    $("#mDel").classList.add("hidden"); $("#mCancel").classList.add("hidden");
+  }
+  function editMezzo(id){
+    const m=mezzi.find(x=>x.id===id); if(!m) return; editingMezzo=id;
+    ["nome","targa","revisione","assicurazione","bollo"].forEach(k=>M(k).value=m[k]||"");
+    $("#mTitle").textContent="Modifica mezzo"; $("#mSave").textContent="Salva modifiche";
+    $("#mDel").classList.remove("hidden"); $("#mCancel").classList.remove("hidden");
+    window.scrollTo(0,0); M("nome").focus();
+  }
+  $("#mezziBtn").onclick=()=>{ resetMezzoForm(); renderMezzi(); go("Mezzi"); M("nome").focus(); };
+  $("#mCancel").onclick=resetMezzoForm;
+  $("#mSave").onclick=async()=>{
+    const nome=M("nome").value.trim();
+    if(!nome){ toast("Inserisci il nome del mezzo."); M("nome").focus(); return; }
+    const dup=findMezzoByName(nome); if(dup && dup.id!==editingMezzo){ toast("Questo mezzo è già in elenco."); return; }
+    const m={id:editingMezzo||("m"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), nome,
+      targa:M("targa").value.trim(), revisione:M("revisione").value, assicurazione:M("assicurazione").value, bollo:M("bollo").value};
+    try{ await persistMezzo(m); toast(editingMezzo?"Mezzo salvato":"Mezzo aggiunto"); resetMezzoForm(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  };
+  $("#mDel").onclick=async()=>{
+    if(!editingMezzo||!confirm("Eliminare il mezzo dall'elenco?")) return;
+    try{ await removeMezzo(editingMezzo); toast("Mezzo eliminato"); resetMezzoForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+
+  /* ---------- Appuntamenti ---------- */
+  const AP = id => $("#ap_"+id);
+  function renderApptOperatoriPicker(){
+    const el=$("#apptOperatoriPicker"); if(!el) return;
+    const names=[...new Set(ops.map(o=>o.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+    apptFormOperatori.forEach(n=>{ if(n && !names.includes(n)) names.push(n); });
+    if(!names.length){ el.innerHTML='<div class="s">Nessun operatore in rubrica. Aggiungili da "Operatori".</div>'; return; }
+    el.innerHTML=names.map(n=>`<label class="chk"><input type="checkbox" value="${esc(n)}" ${apptFormOperatori.includes(n)?"checked":""}> ${esc(n)}</label>`).join("");
+    el.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener("change",()=>{
+      apptFormOperatori=[...el.querySelectorAll('input[type="checkbox"]:checked')].map(c=>c.value);
+    }));
+  }
+  function sortedAppts(){
+    return [...appts].sort((a,b)=> (a.data||"").localeCompare(b.data||"") || (a.ora||"").localeCompare(b.ora||""));
+  }
+  function renderAppointments(){
+    renderApptOperatoriPicker();
+    const list=$("#apList"); if(!list) return;
+    const oggi=today();
+    const items=sortedAppts();
+    if(!items.length){ list.innerHTML='<div class="empty"><p>Nessun appuntamento in programma. Aggiungine uno qui sopra.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+items.map(a=>{
+      const passato = a.data && a.data<oggi;
+      return `<button class="item" type="button" data-aid="${esc(a.id)}" style="grid-template-columns:64px 1fr auto${passato?';opacity:.55':''}">
+        <div class="date"><b>${a.data?a.data.slice(8,10):"--"}</b><span>${a.data?MESI[+a.data.slice(5,7)-1]:""}</span></div>
+        <div style="min-width:0"><div class="t">${esc(a.cliente||"(senza cliente)")}</div><div class="s">${esc(a.luogo||"")}</div>${a.operatori?`<div class="s">${esc(a.operatori)}</div>`:""}${a.note?`<div class="s">${esc(a.note)}</div>`:""}</div>
+        <div class="s">${esc(a.ora||"")}</div></button>`;
+    }).join("")+'</div>';
+    list.querySelectorAll("[data-aid]").forEach(b=>b.onclick=()=>editAppt(b.dataset.aid));
+  }
+  function resetApptForm(){
+    editingAppt=null; AP("data").value=today(); AP("ora").value=""; AP("cliente").value=""; AP("luogo").value=""; AP("note").value="";
+    apptFormOperatori=[]; renderApptOperatoriPicker();
+    $("#apTitle").textContent="Nuovo appuntamento"; $("#apSave").textContent="Aggiungi appuntamento";
+    $("#apDel").classList.add("hidden"); $("#apCancel").classList.add("hidden");
+  }
+  function editAppt(id){
+    const a=appts.find(x=>x.id===id); if(!a) return; editingAppt=id;
+    AP("data").value=a.data||""; AP("ora").value=a.ora||""; AP("cliente").value=a.cliente||""; AP("luogo").value=a.luogo||""; AP("note").value=a.note||"";
+    apptFormOperatori=(a.operatori||"").split(",").map(s=>s.trim()).filter(Boolean); renderApptOperatoriPicker();
+    $("#apTitle").textContent="Modifica appuntamento"; $("#apSave").textContent="Salva modifiche";
+    $("#apDel").classList.remove("hidden"); $("#apCancel").classList.remove("hidden");
+    window.scrollTo(0,0); AP("data").focus();
+  }
+  $("#apptsBtn").onclick=()=>{ resetApptForm(); renderAppointments(); go("Appts"); };
+  $("#apCancel").onclick=resetApptForm;
+  $("#apSave").onclick=async()=>{
+    if(!AP("data").value){ toast("Inserisci la data."); AP("data").focus(); return; }
+    const a={id:editingAppt||("a"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+      data:AP("data").value, ora:AP("ora").value, cliente:AP("cliente").value.trim(), luogo:AP("luogo").value.trim(),
+      operatori:apptFormOperatori.join(", "), note:AP("note").value.trim(), modificato:Date.now()};
+    justCreatedLocally.add(a.id);
+    try{ await persistAppt(a); toast(editingAppt?"Appuntamento salvato":"Appuntamento aggiunto"); resetApptForm(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  };
+  $("#apDel").onclick=async()=>{
+    if(!editingAppt||!confirm("Eliminare questo appuntamento?")) return;
+    try{ await removeAppt(editingAppt); toast("Appuntamento eliminato"); resetApptForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+  AP("cliente").addEventListener("change",()=>{
+    const c=findClient(AP("cliente").value); if(c && !AP("luogo").value && c.ind) AP("luogo").value=c.ind;
+  });
+
+  /* ---------- Foto ---------- */
+  let formPhotos = [];
+  const MAX_PHOTOS = 6;
+  function compressImage(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          const maxSide=1100;
+          let w=img.width, h=img.height;
+          if(w>=h && w>maxSide){ h=Math.round(h*maxSide/w); w=maxSide; }
+          else if(h>w && h>maxSide){ w=Math.round(w*maxSide/h); h=maxSide; }
+          const canvas=document.createElement("canvas");
+          canvas.width=w||1; canvas.height=h||1;
+          canvas.getContext("2d").drawImage(img,0,0,w,h);
+          resolve(canvas.toDataURL("image/jpeg",0.5));
+        };
+        img.onerror=()=>reject(new Error("img"));
+        img.src=reader.result;
+      };
+      reader.onerror=()=>reject(new Error("read"));
+      reader.readAsDataURL(file);
+    });
+  }
+  function renderPhotoThumbs(){
+    const el=$("#photoList"); if(!el) return;
+    el.innerHTML=formPhotos.map((src,i)=>`<div class="photothumb"><img src="${src}" data-i="${i}"><button class="x" type="button" data-rm="${i}" aria-label="Rimuovi foto">✕</button></div>`).join("");
+    el.querySelectorAll("img").forEach(img=>img.onclick=()=>openLightbox(+img.dataset.i, formPhotos));
+    el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ formPhotos.splice(+b.dataset.rm,1); renderPhotoThumbs(); });
+    const cnt=$("#photoCount"); if(cnt) cnt.textContent = formPhotos.length ? formPhotos.length+"/"+MAX_PHOTOS+" foto" : "";
+  }
+  function openLightbox(i, arr){
+    if(!arr || !arr.length) return;
+    let box=$("#lightbox");
+    if(!box){
+      box=document.createElement("div"); box.id="lightbox"; box.className="lightbox hidden";
+      box.innerHTML=`<img id="lightboxImg" alt="Foto ingrandita">`;
+      box.addEventListener("click",()=>box.classList.add("hidden"));
+      document.body.appendChild(box);
+    }
+    $("#lightboxImg").src=arr[i];
+    box.classList.remove("hidden");
+  }
+  if($("#f_fotoInput")){
+    $("#f_fotoInput").addEventListener("change", async (e)=>{
+      const files=[...(e.target.files||[])];
+      e.target.value="";
+      let skipped=false;
+      for(const file of files){
+        if(formPhotos.length>=MAX_PHOTOS){ skipped=true; break; }
+        try{ const data=await compressImage(file); formPhotos.push(data); }
+        catch(err){ toast("Impossibile caricare una foto."); }
+      }
+      if(skipped) toast("Massimo "+MAX_PHOTOS+" foto per rapportino.");
+      renderPhotoThumbs();
+    });
+  }
+
+  $("#saveBtn").onclick=async()=>{
+    if(!F("data").value){ toast("Inserisci la data."); F("data").focus(); return; }
+    if(!F("cliente").value.trim()){ toast("Inserisci il cliente."); F("cliente").focus(); return; }
+    if(!confirm("Salvare questo rapportino?")) return;
+    const materiali=[...$("#matList").children].map(row=>{const i=row.querySelectorAll("input");return {nome:i[0].value.trim(),qta:i[1].value,um:i[2].value.trim(),prezzo:i[3].value};}).filter(m=>m.nome);
+    const old = editingId ? reports.find(x=>x.id===editingId) : null;
+    const r={
+      id: editingId||uid(), numero: (old && old.numero) ? old.numero : nextNumero(F("data").value),
+      data:F("data").value, cliente:F("cliente").value.trim(), luogo:F("luogo").value.trim(),
+      operatori:formOperatori.join(", "), inizio:F("inizio").value, fine:F("fine").value, pausa:Number(F("pausa").value)||0,
+      desc:F("desc").value, note:F("note").value.trim(), stato, materiali,
+      firma: sigDirty ? sig.toDataURL("image/png") : (sigData||""),
+      creato: old && old.creato ? old.creato : Date.now(), modificato: Date.now(),
+      compilatore: isOwner()
+        ? (F("compilatore").value.trim() || (old && old.compilatore) || "Titolare")
+        : ((old && old.compilatore) ? old.compilatore : (getWorkerName()||"")),
+      dico: F("dico").checked,
+      verifiche: [...document.querySelectorAll("[data-ver]:checked")].map(c=>VERIFICHE[+c.dataset.ver]),
+      foto: formPhotos.slice()
+    };
+    EXTRA.forEach(k=>r[k]=String(F(k).value).trim());
+    justCreatedLocally.add(r.id);
+    const b=$("#saveBtn"); b.disabled=true;
+    try{ await persist(r); toast("Rapportino salvato"); if(isOwner()) showDetail(r.id, r); else openNew(); }
+    catch(e){ toast(e && e.code==="quota_exceeded" ? "Archivio pieno: elimina qualche rapportino vecchio." : "Salvataggio non riuscito. Riprova."); }
+    finally{ b.disabled=false; }
+  };
+  $("#delBtn").onclick=async()=>{
+    if(!editingId || !confirm("Eliminare questo rapportino? Non si può annullare.")) return;
+    try{ await remove(editingId); toast("Rapportino eliminato"); go("List"); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+
+  /* ---------- Firma ---------- */
+  const sig=$("#sig"), ctx=sig.getContext("2d"); let drawing=false;
+  function setupSig(){
+    const ratio=window.devicePixelRatio||1, w=sig.clientWidth||600, h=sig.clientHeight||160;
+    sig.width=w*ratio; sig.height=h*ratio; ctx.setTransform(ratio,0,0,ratio,0,0);
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h);
+    ctx.lineWidth=2.2; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#1E2A32";
+    if(sigData){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,w,h); img.src=sigData; }
+  }
+  function pos(e){ const b=sig.getBoundingClientRect(); return {x:e.clientX-b.left,y:e.clientY-b.top}; }
+  sig.addEventListener("pointerdown",e=>{ drawing=true; sigDirty=true; sig.setPointerCapture(e.pointerId); const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+  sig.addEventListener("pointermove",e=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+  ["pointerup","pointercancel"].forEach(t=>sig.addEventListener(t,()=>drawing=false));
+  $("#sigClear").onclick=()=>{ sigData=""; sigDirty=false; setupSig(); };
+
+  /* ---------- Dettaglio ---------- */
+  let currentDetail = null;
+  function buildShareText(r){
+    const m=minutesOf(r);
+    const lines=[];
+    lines.push(`Rapportino di lavoro - ${r.cliente||""}`);
+    if(r.numero) lines.push(`N. rapportino: ${r.numero}`);
+    lines.push(`Data: ${fmtDate(r.data)}`);
+    if(r.compilatore) lines.push(`Compilato da: ${r.compilatore}`);
+    if(r.luogo) lines.push(`Cantiere: ${r.luogo}`);
+    if(r.tipo||r.impianto) lines.push(`Intervento: ${r.tipo||""} su impianto ${(r.impianto||"").toLowerCase()}`);
+    if(r.operatori) lines.push(`Operatori: ${r.operatori}`);
+    if(r.inizio&&r.fine) lines.push(`Orario: ${r.inizio}–${r.fine}${r.pausa?` (pausa ${r.pausa} min)`:""} - Ore lavorate: ${fmtHM(m)}`);
+    if(r.desc) lines.push(`\nLavori eseguiti:\n${r.desc}`);
+    if(r.verifiche&&r.verifiche.length) lines.push(`\nVerifiche: ${r.verifiche.join(", ")}`);
+    if(r.materiali&&r.materiali.length){
+      lines.push(`\nMateriali:`);
+      r.materiali.forEach(x=>{ lines.push(`- ${x.nome} ${x.qta||""} ${x.um||""}${x.prezzo?` (${fmtEUR(Number(x.prezzo))})`:""}`); });
+    }
+    if(r.climaMarca||r.climaModello||r.climaGasTipo){
+      lines.push(`\nClimatizzatore installato: ${[r.climaMarca,r.climaModello].filter(Boolean).join(" ")}${r.climaMatricola?` (matr. ${r.climaMatricola})`:""}`);
+      if(r.climaPotenza) lines.push(`Potenza: ${r.climaPotenza}`);
+      if(r.climaGasTipo||r.climaGasQta) lines.push(`Gas refrigerante: ${r.climaGasTipo||""}${r.climaGasQta?` – ${r.climaGasQta} kg`:""}`);
+    }
+    if(r.tariffa||matCostOf(r)) lines.push(`\nTotale (IVA incl.): ${fmtEUR(grossOf(r))}`);
+    if(r.note) lines.push(`\nNote: ${r.note}`);
+    if(r.foto&&r.foto.length) lines.push(`\nFoto allegate: ${r.foto.length}`);
+    return lines.join("\n");
+  }
+  function showDetail(id, fallback){
+    const r=reports.find(x=>x.id===id)||fallback; if(!r) { go("List"); return; }
+    viewingId=id; currentDetail=r;
+    const m=minutesOf(r), done=r.stato!=="da completare";
+    $("#detail").innerHTML=`
+      <h2>${esc(r.cliente)}<span class="pill ${done?"done":"open"}">${done?"completato":"da completare"}</span></h2>
+      <p style="color:var(--muted);margin:4px 0 0">${r.numero?`N. ${esc(r.numero)} – `:""}Rapportino del ${fmtDate(r.data)}${(()=>{const c=findClient(r.cliente);return c&&c.tel?` – tel. <a href="tel:${esc(c.tel)}" style="color:inherit">${esc(c.tel)}</a>`:"";})()}</p>
+      ${r.compilatore?`<p style="margin:10px 0 0;font-weight:700;font-size:1.05rem">Compilato da: ${esc(r.compilatore)}</p>`:""}
+      <div class="sec"><h3>Intervento</h3><dl class="kv">
+        <dt>Tipo</dt><dd>${esc(r.tipo||"—")} su impianto ${esc((r.impianto||"—").toLowerCase())}</dd>
+        ${r.ordine?`<dt>Ordine / commessa</dt><dd>${esc(r.ordine)}</dd>`:""}
+        <dt>Cantiere</dt><dd>${esc(r.luogo||"—")}</dd>
+        ${r.mezzo||r.km?`<dt>Mezzo</dt><dd>${esc(r.mezzo||"—")}${r.km?" ("+esc(r.km)+" km)":""}</dd>`:""}
+        <dt>Operatori</dt><dd>${esc(r.operatori||"—")}</dd>
+        <dt>Orario</dt><dd>${r.inizio&&r.fine?esc(r.inizio)+" – "+esc(r.fine):"—"}${r.pausa?" (pausa "+esc(r.pausa)+" min)":""}</dd>
+        <dt>Ore lavorate</dt><dd><b>${fmtHM(m)}</b> (${fmtDec(m)} h)</dd>
+      </dl></div>
+      <div class="sec"><h3>Lavori eseguiti</h3><p class="desc">${esc(r.desc||"—")}</p></div>
+      ${(r.verifiche&&r.verifiche.length)||r.iso||r.terra||r.diff||r.dico?`<div class="sec"><h3>Verifiche e misure</h3>
+        ${r.verifiche&&r.verifiche.length?`<p>${r.verifiche.map(esc).join(", ")}</p>`:""}
+        <dl class="kv">
+          ${r.iso?`<dt>Isolamento</dt><dd>${esc(r.iso)} MΩ</dd>`:""}
+          ${r.terra?`<dt>Resistenza di terra</dt><dd>${esc(r.terra)} Ω</dd>`:""}
+          ${r.diff?`<dt>Differenziale</dt><dd>${esc(r.diff)} ms</dd>`:""}
+          ${r.dico?`<dt>DiCo</dt><dd>Da rilasciare</dd>`:""}
+        </dl></div>`:""}
+      ${r.materiali&&r.materiali.length?`<div class="sec"><h3>Materiali</h3><div style="overflow-x:auto"><table><thead><tr><th>Materiale</th><th>Qtà</th><th>Unità</th><th>Prezzo</th><th>Totale</th></tr></thead><tbody>${r.materiali.map(x=>`<tr><td>${esc(x.nome)}</td><td>${esc(x.qta)}</td><td>${esc(x.um)}</td><td>${x.prezzo?fmtEUR(Number(x.prezzo)):"—"}</td><td>${x.prezzo?fmtEUR((Number(x.qta)||0)*(Number(x.prezzo)||0)):"—"}</td></tr>`).join("")}</tbody></table></div>
+        ${matCostOf(r)?`<div class="calc">Totale materiali <b>${fmtEUR(matCostOf(r))}</b></div>`:""}
+      </div>`:""}
+      ${r.foto&&r.foto.length?`<div class="sec"><h3>Foto</h3><div class="photogrid" id="detailPhotos">${r.foto.map((src,i)=>`<img src="${esc(src)}" data-i="${i}" alt="Foto ${i+1} del rapportino">`).join("")}</div></div>`:""}
+      ${(r.climaMarca||r.climaModello||r.climaMatricola||r.climaPotenza||r.climaGasTipo||r.climaGasQta)?`<div class="sec"><h3>Climatizzatore installato</h3><dl class="kv">
+        ${r.climaMarca||r.climaModello?`<dt>Marca / modello</dt><dd>${esc([r.climaMarca,r.climaModello].filter(Boolean).join(" "))}</dd>`:""}
+        ${r.climaMatricola?`<dt>Matricola</dt><dd>${esc(r.climaMatricola)}</dd>`:""}
+        ${r.climaTipoImpianto?`<dt>Tipo impianto</dt><dd>${esc(r.climaTipoImpianto)}${r.climaUnitaInterne?" ("+esc(r.climaUnitaInterne)+" unità interne)":""}</dd>`:""}
+        ${r.climaPotenza?`<dt>Potenza</dt><dd>${esc(r.climaPotenza)}</dd>`:""}
+        ${r.climaGasTipo||r.climaGasQta?`<dt>Gas refrigerante</dt><dd>${esc(r.climaGasTipo||"—")}${r.climaGasQta?" – "+esc(r.climaGasQta)+" kg":""}</dd>`:""}
+      </dl></div>`:""}
+      ${(r.tariffa||matCostOf(r))?`<div class="sec"><h3>Costo intervento</h3><dl class="kv">
+        ${r.tariffa?`<dt>Tariffa oraria</dt><dd>${fmtEUR(Number(r.tariffa))}/h</dd><dt>Manodopera</dt><dd>${fmtEUR(costOf(r))}</dd>`:""}
+        ${matCostOf(r)?`<dt>Materiali</dt><dd>${fmtEUR(matCostOf(r))}</dd>`:""}
+        <dt>Imponibile</dt><dd>${fmtEUR(netOf(r))}</dd>
+        <dt>IVA (${fmtPct(ivaPct)}%)</dt><dd>${fmtEUR(ivaOf(r))}</dd>
+        <dt>Totale</dt><dd><b>${fmtEUR(grossOf(r))}</b></dd>
+      </dl></div>`:""}
+      ${r.note?`<div class="sec"><h3>Note</h3><p>${esc(r.note)}</p></div>`:""}
+      <div class="sec"><h3>Firma del cliente</h3>${r.firma?`<img class="sigimg" alt="Firma del cliente" src="${r.firma}">`:'<p style="color:var(--muted)">Non firmato</p>'}</div>`;
+    if(r.foto&&r.foto.length){
+      $("#detailPhotos").querySelectorAll("img").forEach(img=>img.onclick=()=>openLightbox(+img.dataset.i, r.foto));
+    }
+    go("Detail");
+  }
+  $("#editBtn").onclick=()=>openEdit(viewingId);
+  $("#printBtn").onclick=()=>{ try{ window.print(); }catch(e){ toast("Stampa non disponibile qui."); } };
+  $("#shareWaBtn").onclick=()=>{
+    if(!currentDetail) return;
+    const text=buildShareText(currentDetail);
+    try{ window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank"); }
+    catch(e){ toast("Impossibile aprire WhatsApp."); }
+  };
+  $("#shareMailBtn").onclick=()=>{
+    if(!currentDetail) return;
+    const r=currentDetail;
+    const subject="Rapportino - "+(r.cliente||"")+" - "+fmtDate(r.data);
+    const body=buildShareText(r);
+    try{ window.location.href="mailto:?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body); }
+    catch(e){ toast("Impossibile aprire l'email."); }
+  };
+  $("#shareOtherBtn").onclick=async()=>{
+    if(!currentDetail) return;
+    const r=currentDetail;
+    const text=buildShareText(r);
+    if(navigator.share){
+      try{ await navigator.share({title:"Rapportino - "+(r.cliente||""), text}); }
+      catch(e){}
+    } else {
+      toast("Condivisione non disponibile qui: usa WhatsApp o Email.");
+    }
+  };
+
+  /* ---------- Statistiche mensili ---------- */
+  let statsMetric = "ore";
+  document.querySelectorAll("[data-metric]").forEach(b=>b.addEventListener("click",()=>{
+    statsMetric=b.dataset.metric;
+    document.querySelectorAll("[data-metric]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.metric===statsMetric)));
+    renderStats();
+  }));
+  function last12Months(){
+    const out=[], base=new Date(); base.setDate(1);
+    for(let i=11;i>=0;i--){
+      const dd=new Date(base.getFullYear(), base.getMonth()-i, 1);
+      out.push(dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0"));
+    }
+    return out;
+  }
+  function statsData(){
+    return last12Months().map(m=>{
+      const rows=reports.filter(r=>(r.data||"").startsWith(m));
+      const ore=rows.reduce((a,r)=>a+minutesOf(r),0)/60;
+      const fatturato=rows.reduce((a,r)=>a+grossOf(r),0);
+      const [y,mm]=m.split("-");
+      return {mese:m, label:MESI[+mm-1]+" "+y.slice(2), ore, fatturato, count:rows.length};
+    });
+  }
+  function renderStats(){
+    if(!$("#statsChart")) return;
+    const data=statsData(), key=statsMetric, isOre=key==="ore";
+    const values=data.map(d=>d[key]);
+    const max=Math.max(1,...values);
+    const barW=28, gap=18, padL=6, padT=10, padB=30, h=200;
+    const svgW=padL+data.length*(barW+gap);
+    const bars=data.map((d,i)=>{
+      const x=padL+i*(barW+gap);
+      const availH=h-padB-padT;
+      const bh=d[key]>0?Math.max(3, availH*(d[key]/max)):0;
+      const y=h-padB-bh;
+      const val = isOre ? fmtDec(Math.round(d.ore*60))+" h" : fmtEUR(d.fatturato);
+      return `<g><title>${esc(d.label)}: ${esc(val)}</title>
+        <rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" ry="4" fill="var(--hivis)"></rect>
+        <text x="${x+barW/2}" y="${h-padB+16}" text-anchor="middle" font-size="10" fill="var(--muted)">${esc(d.label)}</text>
+      </g>`;
+    }).join("");
+    $("#statsChart").innerHTML = `<svg viewBox="0 0 ${svgW} ${h}" width="${svgW}" height="${h}" style="min-width:100%" role="img" aria-label="Grafico ${isOre?'ore lavorate':'fatturato'} per mese, ultimi 12 mesi">
+      <line x1="${padL}" y1="${h-padB}" x2="${svgW-2}" y2="${h-padB}" stroke="var(--line)" stroke-width="1"></line>
+      ${bars}
+    </svg>`;
+    const tbl=$("#statsTable");
+    if(tbl){
+      tbl.innerHTML = `<thead><tr><th>Mese</th><th>Rapportini</th><th>Ore</th><th>Fatturato (IVA incl.)</th></tr></thead>
+        <tbody>${data.map(d=>`<tr><td>${esc(d.label)}</td><td>${d.count}</td><td>${fmtDec(Math.round(d.ore*60))}</td><td>${fmtEUR(d.fatturato)}</td></tr>`).join("")}</tbody>`;
+    }
+  }
+  $("#statsBtn").onclick=()=>{
+    statsMetric="ore";
+    document.querySelectorAll("[data-metric]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.metric==="ore")));
+    renderStats(); go("Stats");
+  };
+
+  /* ---------- Esporta CSV ---------- */
+  let downloads=null;
+  (async()=>{ try{ if(window.claude&&window.claude.use) downloads=await window.claude.use("downloads"); }catch(e){} })();
+  $("#exportBtn").onclick=async()=>{
+    const rows=filtered(); if(!rows.length){ toast("Nessun rapportino da esportare."); return; }
+    const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+    const head=["Numero","Data","Cliente","Tipo","Impianto","Ordine","Cantiere","Operatori","Compilato da","Inizio","Fine","Pausa (min)","Ore","Tariffa oraria (€/h)","Costo manodopera (€)","Costo materiali (€)","Imponibile (€)","IVA %","IVA (€)","Totale IVA incl. (€)","Stato","Lavori eseguiti","Materiali","Verifiche","Isolamento MΩ","Terra Ω","Differenziale ms","DiCo","Km","Mezzo","Clima marca","Clima modello","Clima matricola","Clima tipo impianto","Clima unità interne","Clima potenza","Clima gas tipo","Clima gas kg","Note","Foto","Firmato"];
+    const lines=[head.map(q).join(";")].concat(rows.map(r=>{
+      const conCosti=r.tariffa||matCostOf(r);
+      return [r.numero,fmtDate(r.data),r.cliente,r.tipo,r.impianto,r.ordine,r.luogo,r.operatori,r.compilatore||"",r.inizio,r.fine,r.pausa,fmtDec(minutesOf(r)),r.tariffa||"",r.tariffa?fmtMoneyDec(costOf(r)):"",matCostOf(r)?fmtMoneyDec(matCostOf(r)):"",conCosti?fmtMoneyDec(netOf(r)):"",conCosti?fmtPct(ivaPct):"",conCosti?fmtMoneyDec(ivaOf(r)):"",conCosti?fmtMoneyDec(grossOf(r)):"",r.stato,r.desc,(r.materiali||[]).map(m=>`${m.nome} ${m.qta||""} ${m.um||""}${m.prezzo?" @€"+fmtMoneyDec(Number(m.prezzo)):""}`.trim()).join(", "),(r.verifiche||[]).join(", "),r.iso,r.terra,r.diff,r.dico?"sì":"no",r.km,r.mezzo,r.climaMarca,r.climaModello,r.climaMatricola,r.climaTipoImpianto,r.climaUnitaInterne,r.climaPotenza,r.climaGasTipo,r.climaGasQta,r.note,(r.foto||[]).length||"",r.firma?"sì":"no"].map(q).join(";");
+    }));
+    const csv="﻿"+lines.join("\r\n"), name="rapportini-"+($("#month").value||today())+".csv";
+    if(downloads){
+      try{ await downloads.save({filename:name,data:csv}); }
+      catch(e){ if(e&&e.code!=="cancelled") toast("Esportazione non riuscita."); }
+    } else {
+      try{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=name; a.click(); }
+      catch(e){ toast("Esportazione non disponibile qui."); }
+    }
+  };
+
+  window.addEventListener("resize",()=>{ if(!$("#viewForm").classList.contains("hidden") && !sigDirty) setupSig(); });
+
+  /* ---------- Installazione come app (PWA) ---------- */
+  if("serviceWorker" in navigator && window.isSecureContext){
+    window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+  }
+
+  /* Rendering iniziale: eseguito qui, dopo che tutte le funzioni e costanti
+     necessarie (fmtHM, esc, renderClients, renderOperators, ecc.) sono state definite. */
+  renderClients();
+  renderOperators();
+  renderMezzi();
+  renderAppointments();
+  ensureNotifPermission();
+  if(isOwner()){
+    render();
+  } else {
+    if(!getWorkerName()){
+      const n=(prompt("Come ti chiami? (nome e cognome)")||"").trim();
+      if(n) setWorkerName(n);
+    }
+    openNew();
+  }
+})();
+</script>
+</body>
+</html>
