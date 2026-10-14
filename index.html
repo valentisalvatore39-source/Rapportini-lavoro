@@ -74,6 +74,10 @@ label{display:block;font-weight:600;font-size:.92rem;margin-bottom:4px}
 .group-title:first-child{margin-top:0}
 .group-title .count{font-family:"Barlow",sans-serif;font-weight:500;font-size:.82rem;color:var(--muted)}
 .group-title .chev{margin-left:auto;color:var(--muted);font-size:1.2rem}
+.cantiere-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin:16px 0 8px;font-family:"Barlow Condensed",sans-serif;font-size:1rem;font-weight:700;color:var(--muted);padding-bottom:4px;border-bottom:1.5px solid var(--line)}
+.cantiere-title:first-of-type{margin-top:4px}
+.cantiere-title .count{font-family:"Barlow",sans-serif;font-weight:500;font-size:.8rem;color:var(--muted)}
+.cantiere-bulk-saldo{margin-left:auto;padding:4px 10px;min-height:36px;font-size:.78rem;font-family:"Barlow",sans-serif;font-weight:600}
 .list{display:flex;flex-direction:column;gap:0;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:0}
 .item{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
 .item:last-child{border-bottom:0}
@@ -84,8 +88,10 @@ label{display:block;font-weight:600;font-size:.92rem;margin-bottom:4px}
 .item .t{font-weight:600}
 .item .s{color:var(--muted);font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .h{font-family:"Barlow Condensed",sans-serif;font-size:1.4rem;font-weight:700;text-align:right}
+.item-del{grid-template-columns:72px 1fr auto auto}
 .pill{display:inline-block;font-size:.8rem;font-weight:600;padding:1px 8px;border-radius:99px;border:1.5px solid currentColor;margin-left:6px}
 .pill.open{color:var(--warn)} .pill.done{color:var(--ok)} .pill.danger{color:var(--danger)}
+button.pill{background:none;cursor:pointer;font-family:inherit;line-height:1.4}
 .empty{padding:40px 20px;text-align:center;background:var(--paper);border:1.5px dashed var(--line);border-radius:8px}
 .empty p{color:var(--muted);margin:8px 0 16px}
 
@@ -153,6 +159,7 @@ th{color:var(--muted);font-weight:500}
   .kv{grid-template-columns:1fr} .kv dt{margin-top:6px}
   .mat{grid-template-columns:1fr 52px 52px 66px 40px}
   .item{grid-template-columns:56px 1fr auto}
+  .item-del{grid-template-columns:56px 1fr auto auto}
 }
 @media (max-width:600px){
   header.top .bar{flex-wrap:wrap}
@@ -181,6 +188,7 @@ th{color:var(--muted);font-weight:500}
     <button class="btn ghost ownerOnly" id="mezziBtn" type="button">Mezzi</button>
     <button class="btn ghost ownerOnly" id="statsBtn" type="button">Statistiche</button>
     <button class="btn ghost ownerOnly" id="exportBtn" type="button">Esporta CSV</button>
+    <button class="btn ghost ownerOnly" id="exportPhotosBtn" type="button">Scarica foto</button>
   </nav>
 </header>
 
@@ -484,6 +492,7 @@ th{color:var(--muted);font-weight:500}
       <button class="btn ghost" type="button" id="shareWaBtn">WhatsApp</button>
       <button class="btn ghost" type="button" id="shareMailBtn">Email</button>
       <button class="btn ghost" type="button" id="shareOtherBtn">Condividi</button>
+      <button class="btn ghost hidden" type="button" id="downloadPhotosBtn">Scarica foto</button>
       <button class="btn ghost" type="button" id="printBtn">Stampa</button>
       <button class="btn primary" type="button" id="editBtn">Modifica</button>
     </div>
@@ -1125,6 +1134,96 @@ th{color:var(--muted);font-weight:500}
     return y+"/"+String(max+1).padStart(3,"0");
   }
 
+  /* ---------- Scarica foto (zip senza compressione: le foto sono già JPEG compresse) ---------- */
+  function slugify(s){ return ((s||"").toString().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zA-Z0-9]+/g,"-").replace(/^-+|-+$/g,"")) || "foto"; }
+  function dataUrlToUint8Array(dataUrl){
+    const comma=dataUrl.indexOf(","); const base64=comma>=0?dataUrl.slice(comma+1):dataUrl;
+    const binary=atob(base64); const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++){ bytes[i]=binary.charCodeAt(i); }
+    return bytes;
+  }
+  let crc32Table=null;
+  function crc32(bytes){
+    if(!crc32Table){
+      crc32Table=[];
+      for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); } crc32Table[n]=c>>>0; }
+    }
+    let crc=0^(-1);
+    for(let i=0;i<bytes.length;i++){ crc=(crc>>>8)^crc32Table[(crc^bytes[i])&0xFF]; }
+    return (crc^(-1))>>>0;
+  }
+  function dosDateTimeNow(){
+    const d=new Date();
+    const dosTime=((d.getHours()&0x1F)<<11)|((d.getMinutes()&0x3F)<<5)|((d.getSeconds()>>1)&0x1F);
+    const dosDate=(((d.getFullYear()-1980)&0x7F)<<9)|(((d.getMonth()+1)&0xF)<<5)|(d.getDate()&0x1F);
+    return {dosTime,dosDate};
+  }
+  function buildZip(files){
+    const encoder=new TextEncoder();
+    const {dosTime,dosDate}=dosDateTimeNow();
+    const localParts=[], centralParts=[];
+    let offset=0;
+    files.forEach(f=>{
+      const nameBytes=encoder.encode(f.name), data=f.data, crc=crc32(data), size=data.length;
+      const local=new Uint8Array(30+nameBytes.length), lv=new DataView(local.buffer);
+      lv.setUint32(0,0x04034b50,true); lv.setUint16(4,20,true); lv.setUint16(6,0,true); lv.setUint16(8,0,true);
+      lv.setUint16(10,dosTime,true); lv.setUint16(12,dosDate,true); lv.setUint32(14,crc,true);
+      lv.setUint32(18,size,true); lv.setUint32(22,size,true); lv.setUint16(26,nameBytes.length,true); lv.setUint16(28,0,true);
+      local.set(nameBytes,30);
+      localParts.push(local,data);
+      const central=new Uint8Array(46+nameBytes.length), cv=new DataView(central.buffer);
+      cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true); cv.setUint16(8,0,true); cv.setUint16(10,0,true);
+      cv.setUint16(12,dosTime,true); cv.setUint16(14,dosDate,true); cv.setUint32(16,crc,true);
+      cv.setUint32(20,size,true); cv.setUint32(24,size,true); cv.setUint16(28,nameBytes.length,true);
+      cv.setUint16(30,0,true); cv.setUint16(32,0,true); cv.setUint16(34,0,true); cv.setUint16(36,0,true); cv.setUint32(38,0,true);
+      cv.setUint32(42,offset,true);
+      central.set(nameBytes,46);
+      centralParts.push(central);
+      offset += local.length + data.length;
+    });
+    const centralSize=centralParts.reduce((a,p)=>a+p.length,0), centralOffset=offset;
+    const end=new Uint8Array(22), ev=new DataView(end.buffer);
+    ev.setUint32(0,0x06054b50,true); ev.setUint16(4,0,true); ev.setUint16(6,0,true);
+    ev.setUint16(8,files.length,true); ev.setUint16(10,files.length,true);
+    ev.setUint32(12,centralSize,true); ev.setUint32(16,centralOffset,true); ev.setUint16(20,0,true);
+    return new Blob([...localParts, ...centralParts, end], {type:"application/zip"});
+  }
+  function downloadBlob(blob, filename){
+    try{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    }catch(e){ toast("Download non disponibile qui."); }
+  }
+  async function downloadReportPhotos(id){
+    const r = reports.find(x=>x.id===id);
+    if(!r || !r.foto || !r.foto.length){ toast("Nessuna foto in questo rapportino."); return; }
+    const base = slugify((r.cliente||"rapportino")+"-"+(r.data||""));
+    if(r.foto.length===1){
+      try{ const a=document.createElement("a"); a.href=r.foto[0]; a.download=base+".jpg"; a.click(); }
+      catch(e){ toast("Download non riuscito."); }
+      return;
+    }
+    try{
+      const files=r.foto.map((src,i)=>({ name: base+"-"+(i+1)+".jpg", data: dataUrlToUint8Array(src) }));
+      downloadBlob(buildZip(files), base+"-foto.zip");
+    }catch(e){ toast("Download non riuscito."); }
+  }
+  async function downloadPhotosBulk(){
+    const rows = filtered().filter(r=>r.foto&&r.foto.length);
+    if(!rows.length){ toast("Nessuna foto nei rapportini selezionati."); return; }
+    const files=[];
+    rows.forEach(r=>{
+      const base = slugify([r.data,r.cliente,r.luogo].filter(Boolean).join("_")) + "-" + String(r.id).slice(0,6);
+      r.foto.forEach((src,i)=>{ files.push({ name: base+"-"+(i+1)+".jpg", data: dataUrlToUint8Array(src) }); });
+    });
+    if(!files.length){ toast("Nessuna foto nei rapportini selezionati."); return; }
+    try{
+      downloadBlob(buildZip(files), "foto-rapportini-"+($("#month").value||today())+".zip");
+      toast("Scaricate "+files.length+(files.length===1?" foto.":" foto."));
+    }catch(e){ toast("Download non riuscito."); }
+  }
+
   /* ---------- Viste ---------- */
   function go(v){
     ["List","Form","Detail","Clients","Operators","Mezzi","Stats","Appts","Presenze"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
@@ -1180,12 +1279,51 @@ th{color:var(--muted);font-weight:500}
     const done=r.stato!=="da completare";
     const title = showClient ? (r.cliente||"Senza cliente") : (r.tipo||r.desc||"Rapportino");
     const sub = showClient ? ([r.tipo,r.luogo,r.operatori].filter(Boolean).join(" – ")||r.desc||"") : [r.luogo,r.operatori].filter(Boolean).join(" – ");
-    return `<button class="item" type="button" data-id="${esc(r.id)}">
+    return `<div class="item${isOwner()?" item-del":""}" data-id="${esc(r.id)}">
       <div class="date"><b>${esc(d||"")}</b><span>${m?MESI[+m-1]:""} ${esc(y||"")}</span>${r.numero?`<span style="font-size:.68rem;color:var(--muted)">${esc(r.numero)}</span>`:""}</div>
-      <div style="min-width:0"><div class="t">${esc(title)}<span class="pill ${done?"done":"open"}">${done?"completato":"da completare"}</span></div>
+      <div style="min-width:0"><div class="t">${esc(title)}<button type="button" class="pill ${done?"done":"open"}" data-toggle-stato="${esc(r.id)}" title="Tocca per cambiare stato">${done?"completato":"da completare"}</button><button type="button" class="pill ${r.saldato?"done":"open"}" data-toggle-saldo="${esc(r.id)}" title="Tocca per cambiare">${r.saldato?"saldato":"da saldare"}</button></div>
       <div class="s">${esc(sub)}</div>
       ${r.compilatore?`<div class="s">Compilato da: ${esc(r.compilatore)}</div>`:""}</div>
-      <div class="h">${fmtHM(minutesOf(r))}</div></button>`;
+      <div class="h">${fmtHM(minutesOf(r))}</div>
+      ${isOwner()?`<button type="button" class="pr-icon" data-del-report="${esc(r.id)}" aria-label="Elimina rapportino del ${esc(fmtDate(r.data))}" title="Elimina">🗑</button>`:""}
+    </div>`;
+  }
+  async function deleteReportFromList(id){
+    const r = reports.find(x=>x.id===id);
+    if(!r) return;
+    const label = (r.cliente||"Senza cliente") + " – " + fmtDate(r.data);
+    if(!confirm(`Eliminare il rapportino di ${label}? Non si può annullare.`)) return;
+    try{ await remove(id); toast("Rapportino eliminato"); }
+    catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  }
+  async function toggleReportStato(id){
+    const r = reports.find(x=>x.id===id);
+    if(!r) return;
+    const nuovo = r.stato==="da completare" ? "completato" : "da completare";
+    const updated = Object.assign({}, r, { stato: nuovo, modificato: Date.now() });
+    try{ await persist(updated); toast(nuovo==="completato" ? "Segnato come completato" : "Segnato come da completare"); }
+    catch(e){ toast("Aggiornamento non riuscito. Riprova."); }
+  }
+  async function toggleReportSaldo(id){
+    const r = reports.find(x=>x.id===id);
+    if(!r) return;
+    const updated = Object.assign({}, r, { saldato: !r.saldato, modificato: Date.now() });
+    try{ await persist(updated); toast(updated.saldato ? "Segnato come saldato" : "Segnato come da saldare"); }
+    catch(e){ toast("Aggiornamento non riuscito. Riprova."); }
+  }
+  function cantiereSaldoLabel(items){ return items.every(r=>r.saldato) ? "Segna tutti da saldare" : "Segna tutti saldati"; }
+  async function bulkSetSaldo(idsStr, toSaldato){
+    const ids = (idsStr||"").split(",").filter(Boolean);
+    if(!ids.length) return;
+    if(!confirm(`Segnare tutti i ${ids.length} rapportini di questo cantiere come "${toSaldato?"saldati":"da saldare"}"?`)) return;
+    try{
+      for(const id of ids){
+        const r = reports.find(x=>x.id===id);
+        if(!r) continue;
+        await persist(Object.assign({}, r, { saldato: toSaldato, modificato: Date.now() }));
+      }
+      toast("Aggiornati "+ids.length+(ids.length===1?" rapportino.":" rapportini."));
+    }catch(e){ toast("Aggiornamento non riuscito. Riprova."); }
   }
   function render(){
     renderMonths();
@@ -1204,7 +1342,14 @@ th{color:var(--muted);font-weight:500}
     }
     if(!rows.length){ list.innerHTML='<div class="empty"><p>Nessun rapportino corrisponde alla ricerca.</p></div>'; return; }
     if(openClient!==null){
-      list.innerHTML = `<h2 style="margin:4px 0 12px">${esc(openClient)}</h2><div class="list">`+rows.map(r=>reportRowHtml(r,false)).join("")+'</div>';
+      const siteGroups=new Map();
+      rows.forEach(r=>{ const key=r.luogo||"Senza cantiere"; if(!siteGroups.has(key)) siteGroups.set(key,[]); siteGroups.get(key).push(r); });
+      const siteKeys=[...siteGroups.keys()].sort((a,b)=>a.localeCompare(b,"it"));
+      list.innerHTML = `<h2 style="margin:4px 0 12px">${esc(openClient)}</h2>` + siteKeys.map(site=>{
+        const items=siteGroups.get(site);
+        return `<h3 class="cantiere-title"><span class="cantiere-name">${esc(site)}</span><span class="count">${items.length} ${items.length===1?"rapportino":"rapportini"}</span><button type="button" class="btn ghost cantiere-bulk-saldo" data-bulk-saldo="${esc(items.map(r=>r.id).join(","))}">${cantiereSaldoLabel(items)}</button></h3><div class="list">`
+          + items.map(r=>reportRowHtml(r,false)).join("") + '</div>';
+      }).join("");
     } else {
       const groups=new Map();
       rows.forEach(r=>{ const key=r.cliente||"Senza cliente"; if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(r); });
@@ -1216,7 +1361,29 @@ th{color:var(--muted);font-weight:500}
       }).join("");
       list.querySelectorAll(".group-title").forEach(b=>b.onclick=()=>openClientGroup(b.dataset.client));
     }
-    list.querySelectorAll(".item").forEach(b=>b.onclick=()=>showDetail(b.dataset.id));
+    list.querySelectorAll(".item[data-id]").forEach(el=>el.addEventListener("click", e=>{
+      if(e.target.closest("[data-del-report]") || e.target.closest("[data-toggle-stato]") || e.target.closest("[data-toggle-saldo]")) return;
+      showDetail(el.dataset.id);
+    }));
+    list.querySelectorAll("[data-del-report]").forEach(b=>b.addEventListener("click", e=>{
+      e.stopPropagation();
+      deleteReportFromList(b.dataset.delReport);
+    }));
+    list.querySelectorAll("[data-toggle-stato]").forEach(b=>b.addEventListener("click", e=>{
+      e.stopPropagation();
+      toggleReportStato(b.dataset.toggleStato);
+    }));
+    list.querySelectorAll("[data-toggle-saldo]").forEach(b=>b.addEventListener("click", e=>{
+      e.stopPropagation();
+      toggleReportSaldo(b.dataset.toggleSaldo);
+    }));
+    list.querySelectorAll("[data-bulk-saldo]").forEach(b=>b.addEventListener("click", e=>{
+      e.stopPropagation();
+      const ids=b.dataset.bulkSaldo;
+      const idList=(ids||"").split(",").filter(Boolean);
+      const allDone = idList.length>0 && idList.every(id=>{ const r=reports.find(x=>x.id===id); return r && r.saldato; });
+      bulkSetSaldo(ids, !allDone);
+    }));
   }
   $("#backToAllClients").addEventListener("click", ()=>{ openClient=null; render(); });
   $("#q").addEventListener("input",render);
@@ -1803,7 +1970,7 @@ th{color:var(--muted);font-weight:500}
     viewingId=id; currentDetail=r;
     const m=minutesOf(r), done=r.stato!=="da completare";
     $("#detail").innerHTML=`
-      <h2>${esc(r.cliente)}<span class="pill ${done?"done":"open"}">${done?"completato":"da completare"}</span></h2>
+      <h2>${esc(r.cliente)}<span class="pill ${done?"done":"open"}">${done?"completato":"da completare"}</span><span class="pill ${r.saldato?"done":"open"}">${r.saldato?"saldato":"da saldare"}</span></h2>
       <p style="color:var(--muted);margin:4px 0 0">${r.numero?`N. ${esc(r.numero)} – `:""}Rapportino del ${fmtDate(r.data)}${(()=>{const c=findClient(r.cliente);return c&&c.tel?` – tel. <a href="tel:${esc(c.tel)}" style="color:inherit">${esc(c.tel)}</a>`:"";})()}</p>
       ${r.compilatore?`<p style="margin:10px 0 0;font-weight:700;font-size:1.05rem">Compilato da: ${esc(r.compilatore)}</p>`:""}
       <div class="sec"><h3>Intervento</h3><dl class="kv">
@@ -1847,10 +2014,12 @@ th{color:var(--muted);font-weight:500}
     if(r.foto&&r.foto.length){
       $("#detailPhotos").querySelectorAll("img").forEach(img=>img.onclick=()=>openLightbox(+img.dataset.i, r.foto));
     }
+    $("#downloadPhotosBtn").classList.toggle("hidden", !(r.foto&&r.foto.length));
     go("Detail");
   }
   $("#editBtn").onclick=()=>openEdit(viewingId);
   $("#printBtn").onclick=()=>{ try{ window.print(); }catch(e){ toast("Stampa non disponibile qui."); } };
+  $("#downloadPhotosBtn").onclick=()=>{ if(viewingId) downloadReportPhotos(viewingId); };
   $("#shareWaBtn").onclick=()=>{
     if(!currentDetail) return;
     const text=buildShareText(currentDetail);
@@ -1956,6 +2125,7 @@ th{color:var(--muted);font-weight:500}
       catch(e){ toast("Esportazione non disponibile qui."); }
     }
   };
+  $("#exportPhotosBtn").onclick=downloadPhotosBulk;
 
   window.addEventListener("resize",()=>{ if(!$("#viewForm").classList.contains("hidden") && !sigDirty) setupSig(); });
 
