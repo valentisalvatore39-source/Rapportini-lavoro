@@ -385,6 +385,13 @@ th{color:var(--muted);font-weight:500}
         <div><label for="cn_ind">Indirizzo</label><input id="cn_ind" autocomplete="off"></div>
       </div>
       <div style="margin-top:12px">
+        <label for="cn_cliente">Cliente</label>
+        <div style="display:flex;gap:8px">
+          <input id="cn_cliente" list="clientiList" autocomplete="off" placeholder="A quale cliente appartiene" style="flex:1;min-width:0">
+          <button type="button" class="btn ghost" data-pick-client="cn_cliente" style="flex:none;padding:10px 14px" aria-label="Scegli dalla rubrica">📋</button>
+        </div>
+      </div>
+      <div style="margin-top:12px">
         <label for="cn_nota">Nota (vale per tutti i rapportini di questo cantiere)</label>
         <textarea id="cn_nota" rows="3" placeholder="es. Chiavi dal portinaio, citofono 3B, parcheggio nel cortile…"></textarea>
       </div>
@@ -1346,7 +1353,7 @@ th{color:var(--muted);font-weight:500}
     const nota = testo.trim();
     const rec = cn
       ? Object.assign({}, cn, { nota })
-      : { id:"cn"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), nome:siteName, ind:"", nota };
+      : { id:"cn"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), nome:siteName, ind:"", cliente:(openClient||""), nota };
     try{ await persistCantiere(rec); toast(nota?"Nota cantiere salvata":"Nota cantiere rimossa"); render(); }
     catch(e){ toast("Salvataggio non riuscito. Riprova."); }
   }
@@ -1605,6 +1612,7 @@ th{color:var(--muted);font-weight:500}
     if(!editingClient||!confirm("Eliminare il cliente dalla rubrica? I rapportini già fatti restano.")) return;
     try{ await removeClient(editingClient); toast("Cliente eliminato"); resetClientForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
   };
+  F("cliente").addEventListener("input",()=>{ if(typeof renderCantieri==="function") try{ renderCantieri(); }catch(e){} });
   F("cliente").addEventListener("change",()=>{
     const c=findClient(F("cliente").value); if(c && !F("luogo").value && c.ind) F("luogo").value=c.ind;
   });
@@ -1612,29 +1620,40 @@ th{color:var(--muted);font-weight:500}
   /* ---------- Cantieri ---------- */
   const CN = id => $("#cn_"+id);
   function findCantiere(name){ const n=(name||"").trim().toLowerCase(); return cantieri.find(c=>(c.nome||"").toLowerCase()===n); }
-  function allCantiereNames(){
-    return [...new Set(cantieri.map(c=>c.nome).concat(reports.map(r=>r.luogo)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+  function allCantiereNames(cliente){
+    const cl=(cliente||"").trim();
+    let names;
+    if(cl){
+      names = cantieri.filter(c=>sameName(c.cliente,cl)).map(c=>c.nome)
+        .concat(reports.filter(r=>sameName(r.cliente,cl)).map(r=>r.luogo));
+    } else {
+      names = cantieri.map(c=>c.nome).concat(reports.map(r=>r.luogo));
+    }
+    return [...new Set(names.filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+  }
+  function cantiereClienteFor(inputId){
+    return inputId==="f_luogo" ? $("#f_cliente").value : "";
   }
   function renderCantieri(){
-    $("#cantieriList").innerHTML = allCantiereNames().map(n=>`<option value="${esc(n)}">`).join("");
+    $("#cantieriList").innerHTML = allCantiereNames($("#f_cliente")?$("#f_cliente").value:"").map(n=>`<option value="${esc(n)}">`).join("");
     if(!isOwner()) return;
     const list=$("#cnList"), sorted=[...cantieri].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","it"));
     if(!sorted.length){ list.innerHTML='<div class="empty"><p>Nessun cantiere ancora. Aggiungilo qui sopra: lo ritroverai già pronto quando compili un rapportino.</p></div>'; return; }
     list.innerHTML='<div class="list">'+sorted.map(c=>{
       const n=reports.filter(r=>(r.luogo||"").toLowerCase()===(c.nome||"").toLowerCase()).length;
       return `<button class="item" type="button" data-cnid="${esc(c.id)}" style="grid-template-columns:1fr auto">
-        <div style="min-width:0"><div class="t">${esc(c.nome)}</div>${c.ind?`<div class="s">${esc(c.ind)}</div>`:""}${c.nota?`<div class="s">📝 ${esc(c.nota)}</div>`:""}</div>
+        <div style="min-width:0"><div class="t">${esc(c.nome)}</div>${c.cliente?`<div class="s">Cliente: ${esc(c.cliente)}</div>`:""}${c.ind?`<div class="s">${esc(c.ind)}</div>`:""}${c.nota?`<div class="s">📝 ${esc(c.nota)}</div>`:""}</div>
         <div class="s">${n} ${n===1?"rapportino":"rapportini"}</div></button>`;}).join("")+'</div>';
     list.querySelectorAll("[data-cnid]").forEach(b=>b.onclick=()=>editCantiere(b.dataset.cnid));
   }
   function resetCantiereForm(){
-    editingCantiere=null; ["nome","ind","nota"].forEach(k=>CN(k).value="");
+    editingCantiere=null; ["nome","ind","cliente","nota"].forEach(k=>CN(k).value="");
     $("#cnTitle").textContent="Nuovo cantiere"; $("#cnSave").textContent="Aggiungi cantiere";
     $("#cnDel").classList.add("hidden"); $("#cnCancel").classList.add("hidden");
   }
   function editCantiere(id){
     const c=cantieri.find(x=>x.id===id); if(!c) return; editingCantiere=id;
-    ["nome","ind","nota"].forEach(k=>CN(k).value=c[k]||"");
+    ["nome","ind","cliente","nota"].forEach(k=>CN(k).value=c[k]||"");
     $("#cnTitle").textContent="Modifica cantiere"; $("#cnSave").textContent="Salva modifiche";
     $("#cnDel").classList.remove("hidden"); $("#cnCancel").classList.remove("hidden");
     window.scrollTo(0,0); CN("nome").focus();
@@ -1645,7 +1664,7 @@ th{color:var(--muted);font-weight:500}
     const nome=CN("nome").value.trim();
     if(!nome){ toast("Inserisci il nome del cantiere."); CN("nome").focus(); return; }
     const dup=findCantiere(nome); if(dup && dup.id!==editingCantiere){ toast("Questo cantiere è già nell'elenco."); return; }
-    const c={id:editingCantiere||("cn"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), nome, ind:CN("ind").value.trim(), nota:CN("nota").value.trim()};
+    const c={id:editingCantiere||("cn"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), nome, ind:CN("ind").value.trim(), cliente:CN("cliente").value.trim(), nota:CN("nota").value.trim()};
     try{ await persistCantiere(c); toast(editingCantiere?"Cantiere salvato":"Cantiere aggiunto"); resetCantiereForm(); }
     catch(e){ toast("Salvataggio non riuscito. Riprova."); }
   };
@@ -1677,10 +1696,11 @@ th{color:var(--muted);font-weight:500}
   }
   function renderCantierePickerList(q){
     const query=(q||"").trim().toLowerCase();
-    const names=allCantiereNames();
+    const cl=cantiereClienteFor(cantierePickerTarget);
+    const names=allCantiereNames(cl);
     const filtered = query ? names.filter(n=>n.toLowerCase().includes(query)) : names;
     const wrap=$("#cantierePickerList");
-    if(!names.length){ wrap.innerHTML='<p class="s" style="color:var(--muted);padding:8px 0">Nessun cantiere ancora: scrivi il nome direttamente nel campo.</p>'; return; }
+    if(!names.length){ wrap.innerHTML='<p class="s" style="color:var(--muted);padding:8px 0">${cl?"Nessun cantiere ancora per "+esc(cl)+": scrivi il nome direttamente nel campo.":"Nessun cantiere ancora: scrivi il nome direttamente nel campo."}</p>'; return; }
     if(!filtered.length){ wrap.innerHTML='<p class="s" style="color:var(--muted);padding:8px 0">Nessun cantiere trovato.</p>'; return; }
     wrap.innerHTML='<div class="list">'+filtered.map(n=>`<button type="button" class="item" style="grid-template-columns:1fr" data-name="${esc(n)}"><div class="t">${esc(n)}</div></button>`).join("")+'</div>';
     wrap.querySelectorAll("[data-name]").forEach(b=>b.onclick=()=>{
