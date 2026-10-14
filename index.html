@@ -77,7 +77,9 @@ label{display:block;font-weight:600;font-size:.92rem;margin-bottom:4px}
 .cantiere-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin:16px 0 8px;font-family:"Barlow Condensed",sans-serif;font-size:1rem;font-weight:700;color:var(--muted);padding-bottom:4px;border-bottom:1.5px solid var(--line)}
 .cantiere-title:first-of-type{margin-top:4px}
 .cantiere-title .count{font-family:"Barlow",sans-serif;font-weight:500;font-size:.8rem;color:var(--muted)}
+.cantiere-nota-btn{padding:4px 10px;min-height:36px;font-size:.78rem;font-family:"Barlow",sans-serif;font-weight:600}
 .cantiere-bulk-saldo{margin-left:auto;padding:4px 10px;min-height:36px;font-size:.78rem;font-family:"Barlow",sans-serif;font-weight:600}
+.cantiere-nota{background:var(--field);border:1.5px solid var(--line);border-radius:6px;padding:8px 12px;margin:0 0 10px;font-size:.88rem;color:var(--ink);white-space:pre-wrap}
 .list{display:flex;flex-direction:column;gap:0;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:0}
 .item{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
 .item:last-child{border-bottom:0}
@@ -113,6 +115,7 @@ button.pill{background:none;cursor:pointer;font-family:inherit;line-height:1.4}
 .pr-name{font-weight:600}
 .pr-actions{display:flex;gap:6px;flex:none}
 .pr-icon{border:1.5px solid var(--line);background:var(--paper);border-radius:6px;width:34px;height:34px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);padding:0}
+.pr-icon-active{border-color:var(--ok);color:var(--ok)}
 .pr-seg button{font-size:.78rem;padding:8px 2px}
 .pr-seg button[data-stato="assente"][aria-pressed="true"]{background:var(--danger)}
 .pr-seg button[data-stato="malattia"][aria-pressed="true"]{background:var(--warn)}
@@ -183,6 +186,7 @@ th{color:var(--muted);font-weight:500}
   <div class="tape" aria-hidden="true"></div>
   <nav class="dropdown hidden" id="menuDropdown">
     <button class="btn ghost ownerOnly" id="clientsBtn" type="button">Clienti</button>
+    <button class="btn ghost ownerOnly" id="cantieriBtn" type="button">Cantieri</button>
     <button class="btn ghost ownerOnly" id="opBtn" type="button">Operatori</button>
     <button class="btn ghost ownerOnly" id="presenzeBtn" type="button">Presenze</button>
     <button class="btn ghost ownerOnly" id="mezziBtn" type="button">Mezzi</button>
@@ -229,7 +233,13 @@ th{color:var(--muted);font-weight:500}
           </div>
         </div>
         <div class="grid" style="margin-top:12px">
-          <div><label for="f_luogo">Cantiere / indirizzo</label><input id="f_luogo" autocomplete="off"></div>
+          <div><label for="f_luogo">Cantiere / indirizzo</label>
+            <div style="display:flex;gap:8px">
+              <input id="f_luogo" list="cantieriList" autocomplete="off" placeholder="Scrivi o scegli dall'elenco" style="flex:1;min-width:0">
+              <button type="button" class="btn ghost" data-pick-cantiere="f_luogo" style="flex:none;padding:10px 14px" aria-label="Scegli dall'elenco cantieri">📋</button>
+            </div>
+            <datalist id="cantieriList"></datalist>
+          </div>
         </div>
         <div style="margin-top:12px">
           <label>Operatori</label>
@@ -363,6 +373,29 @@ th{color:var(--muted);font-weight:500}
       </div>
     </div>
     <div class="sec"><h3>Rubrica clienti</h3><div id="cList"></div></div>
+  </section>
+
+  <!-- CANTIERI -->
+  <section id="viewCantieri" class="hidden">
+    <button class="back" type="button" data-go="list">‹ Torna ai rapportini</button>
+    <div class="sheet">
+      <h2 id="cnTitle">Nuovo cantiere</h2>
+      <div class="grid" style="margin-top:12px">
+        <div><label for="cn_nome">Nome cantiere</label><input id="cn_nome" autocomplete="off" placeholder="es. Cantiere Via Roma 12"></div>
+        <div><label for="cn_ind">Indirizzo</label><input id="cn_ind" autocomplete="off"></div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="cn_nota">Nota (vale per tutti i rapportini di questo cantiere)</label>
+        <textarea id="cn_nota" rows="3" placeholder="es. Chiavi dal portinaio, citofono 3B, parcheggio nel cortile…"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn danger hidden" type="button" id="cnDel">Elimina</button>
+        <span class="grow"></span>
+        <button class="btn ghost hidden" type="button" id="cnCancel">Annulla modifica</button>
+        <button class="btn primary" type="button" id="cnSave">Aggiungi cantiere</button>
+      </div>
+    </div>
+    <div class="sec"><h3>Elenco cantieri</h3><div id="cnList"></div></div>
   </section>
 
   <!-- OPERATORI -->
@@ -578,6 +611,9 @@ th{color:var(--muted);font-weight:500}
   const LSC="rapportini.clienti.v1";
   let clients=[], ccol=null, editingClient=null;
   try{ clients=JSON.parse(localStorage.getItem(LSC)||"[]"); }catch(e){}
+  const LSCN="rapportini.cantieri.v1";
+  let cantieri=[], cncol=null, editingCantiere=null;
+  try{ cantieri=JSON.parse(localStorage.getItem(LSCN)||"[]"); }catch(e){}
   const LSO="rapportini.operatori.v1";
   let ops=[], ocol=null, editingOp=null;
   let formOperatori=[];
@@ -798,11 +834,13 @@ th{color:var(--muted);font-weight:500}
     db = shared;
     col = db.collection("rapportini");
     ccol = db.collection("clienti");
+    cncol = db.collection("cantieri");
     ocol = db.collection("operatori");
     mcol = db.collection("mezzi");
     apcol = db.collection("appuntamenti");
     prcol = db.collection("presenze");
     ccol.onSnapshot(snap => { clients = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderClients(); }, ()=>{});
+    cncol.onSnapshot(snap => { cantieri = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderCantieri(); if(isOwner()) try{ render(); }catch(e){} }, ()=>{});
     ocol.onSnapshot(snap => { ops = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderOperators(); checkWorkerNameMatchesOperator(); }, ()=>{});
     mcol.onSnapshot(snap => { mezzi = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderMezzi(); }, ()=>{});
     prcol.onSnapshot(snap => { presenze = snap.docs.map(d => Object.assign({id:d.id}, d.data())); renderPresenzeMonths(); renderPresenzeDay(); renderPresenzeStorico(); checkPresenzaReminderOnOpen(); }, ()=>{});
@@ -877,6 +915,15 @@ th{color:var(--muted);font-weight:500}
   async function removeClient(id){
     if(ccol) await ccol.doc(id).delete();
     else { clients=clients.filter(x=>x.id!==id); try{ localStorage.setItem(LSC, JSON.stringify(clients)); }catch(e){} renderClients(); }
+  }
+  async function persistCantiere(cn){
+    if(cncol){ const d=Object.assign({},cn); delete d.id; await cncol.doc(cn.id).set(d); }
+    else { const i=cantieri.findIndex(x=>x.id===cn.id); if(i>=0) cantieri[i]=cn; else cantieri.push(cn);
+      try{ localStorage.setItem(LSCN, JSON.stringify(cantieri)); }catch(e){} renderCantieri(); }
+  }
+  async function removeCantiere(id){
+    if(cncol) await cncol.doc(id).delete();
+    else { cantieri=cantieri.filter(x=>x.id!==id); try{ localStorage.setItem(LSCN, JSON.stringify(cantieri)); }catch(e){} renderCantieri(); }
   }
   async function persistOperator(o){
     if(ocol){ const d=Object.assign({},o); delete d.id; await ocol.doc(o.id).set(d); }
@@ -1226,7 +1273,7 @@ th{color:var(--muted);font-weight:500}
 
   /* ---------- Viste ---------- */
   function go(v){
-    ["List","Form","Detail","Clients","Operators","Mezzi","Stats","Appts","Presenze"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
+    ["List","Form","Detail","Clients","Cantieri","Operators","Mezzi","Stats","Appts","Presenze"].forEach(n=>$("#view"+n).classList.toggle("hidden", n!==v));
     if(isOwner()){
       ["#newBtn","#menuBtn","#apptsBtn"].forEach(s=>$(s).classList.toggle("hidden", v!=="List"));
     }
@@ -1283,10 +1330,34 @@ th{color:var(--muted);font-weight:500}
       <div class="date"><b>${esc(d||"")}</b><span>${m?MESI[+m-1]:""} ${esc(y||"")}</span>${r.numero?`<span style="font-size:.68rem;color:var(--muted)">${esc(r.numero)}</span>`:""}</div>
       <div style="min-width:0"><div class="t">${esc(title)}<button type="button" class="pill ${done?"done":"open"}" data-toggle-stato="${esc(r.id)}" title="Tocca per cambiare stato">${done?"completato":"da completare"}</button><button type="button" class="pill ${r.saldato?"done":"open"}" data-toggle-saldo="${esc(r.id)}" title="Tocca per cambiare">${r.saldato?"saldato":"da saldare"}</button></div>
       <div class="s">${esc(sub)}</div>
-      ${r.compilatore?`<div class="s">Compilato da: ${esc(r.compilatore)}</div>`:""}</div>
+      ${r.compilatore?`<div class="s">Compilato da: ${esc(r.compilatore)}</div>`:""}
+      ${r.note?`<div class="s">📝 ${esc(r.note)}</div>`:""}</div>
       <div class="h">${fmtHM(minutesOf(r))}</div>
-      ${isOwner()?`<button type="button" class="pr-icon" data-del-report="${esc(r.id)}" aria-label="Elimina rapportino del ${esc(fmtDate(r.data))}" title="Elimina">🗑</button>`:""}
+      ${isOwner()?`<div class="pr-actions">
+        <button type="button" class="pr-icon${r.note?" pr-icon-active":""}" data-note-report="${esc(r.id)}" aria-label="Nota del rapportino del ${esc(fmtDate(r.data))}" title="${r.note?"Modifica nota":"Aggiungi nota"}">📝</button>
+        <button type="button" class="pr-icon" data-del-report="${esc(r.id)}" aria-label="Elimina rapportino del ${esc(fmtDate(r.data))}" title="Elimina">🗑</button>
+      </div>`:""}
     </div>`;
+  }
+  async function editCantiereNotaFromList(siteName){
+    const cn = findCantiere(siteName);
+    const testo = prompt("Nota per il cantiere \""+siteName+"\" (vale per tutti i suoi rapportini):", cn?(cn.nota||""):"");
+    if(testo===null) return;
+    const nota = testo.trim();
+    const rec = cn
+      ? Object.assign({}, cn, { nota })
+      : { id:"cn"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), nome:siteName, ind:"", nota };
+    try{ await persistCantiere(rec); toast(nota?"Nota cantiere salvata":"Nota cantiere rimossa"); render(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  }
+  async function editReportNoteFromList(id){
+    const r = reports.find(x=>x.id===id);
+    if(!r) return;
+    const testo = prompt("Nota per il rapportino del "+fmtDate(r.data)+":", r.note||"");
+    if(testo===null) return;
+    const updated = Object.assign({}, r, { note: testo.trim(), modificato: Date.now() });
+    try{ await persist(updated); toast(updated.note?"Nota salvata":"Nota rimossa"); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
   }
   async function deleteReportFromList(id){
     const r = reports.find(x=>x.id===id);
@@ -1328,6 +1399,7 @@ th{color:var(--muted);font-weight:500}
   function render(){
     renderMonths();
     if(typeof renderClients==="function") try{ renderClients(); }catch(e){}
+    if(typeof renderCantieri==="function") try{ renderCantieri(); }catch(e){}
     if(typeof renderMezzi==="function") try{ renderMezzi(); }catch(e){}
     $("#backToAllClients").classList.toggle("hidden", openClient===null);
     const rows = filtered();
@@ -1347,8 +1419,10 @@ th{color:var(--muted);font-weight:500}
       const siteKeys=[...siteGroups.keys()].sort((a,b)=>a.localeCompare(b,"it"));
       list.innerHTML = `<h2 style="margin:4px 0 12px">${esc(openClient)}</h2>` + siteKeys.map(site=>{
         const items=siteGroups.get(site);
-        return `<h3 class="cantiere-title"><span class="cantiere-name">${esc(site)}</span><span class="count">${items.length} ${items.length===1?"rapportino":"rapportini"}</span><button type="button" class="btn ghost cantiere-bulk-saldo" data-bulk-saldo="${esc(items.map(r=>r.id).join(","))}">${cantiereSaldoLabel(items)}</button></h3><div class="list">`
-          + items.map(r=>reportRowHtml(r,false)).join("") + '</div>';
+        const cn=findCantiere(site);
+        return `<h3 class="cantiere-title"><span class="cantiere-name">${esc(site)}</span><span class="count">${items.length} ${items.length===1?"rapportino":"rapportini"}</span>${site!=="Senza cantiere"?`<button type="button" class="btn ghost cantiere-nota-btn${cn&&cn.nota?" pr-icon-active":""}" data-edit-cantiere-nota="${esc(site)}">📝 ${cn&&cn.nota?"Modifica nota":"Nota"}</button>`:""}<button type="button" class="btn ghost cantiere-bulk-saldo" data-bulk-saldo="${esc(items.map(r=>r.id).join(","))}">${cantiereSaldoLabel(items)}</button></h3>`
+          + (cn&&cn.nota?`<p class="cantiere-nota">📝 ${esc(cn.nota)}</p>`:"")
+          + `<div class="list">` + items.map(r=>reportRowHtml(r,false)).join("") + '</div>';
       }).join("");
     } else {
       const groups=new Map();
@@ -1362,8 +1436,16 @@ th{color:var(--muted);font-weight:500}
       list.querySelectorAll(".group-title").forEach(b=>b.onclick=()=>openClientGroup(b.dataset.client));
     }
     list.querySelectorAll(".item[data-id]").forEach(el=>el.addEventListener("click", e=>{
-      if(e.target.closest("[data-del-report]") || e.target.closest("[data-toggle-stato]") || e.target.closest("[data-toggle-saldo]")) return;
+      if(e.target.closest("[data-del-report]") || e.target.closest("[data-toggle-stato]") || e.target.closest("[data-toggle-saldo]") || e.target.closest("[data-note-report]")) return;
       showDetail(el.dataset.id);
+    }));
+    list.querySelectorAll("[data-note-report]").forEach(b=>b.addEventListener("click", e=>{
+      e.stopPropagation();
+      editReportNoteFromList(b.dataset.noteReport);
+    }));
+    list.querySelectorAll("[data-edit-cantiere-nota]").forEach(b=>b.addEventListener("click", e=>{
+      e.stopPropagation();
+      editCantiereNotaFromList(b.dataset.editCantiereNota);
     }));
     list.querySelectorAll("[data-del-report]").forEach(b=>b.addEventListener("click", e=>{
       e.stopPropagation();
@@ -1526,6 +1608,97 @@ th{color:var(--muted);font-weight:500}
   F("cliente").addEventListener("change",()=>{
     const c=findClient(F("cliente").value); if(c && !F("luogo").value && c.ind) F("luogo").value=c.ind;
   });
+
+  /* ---------- Cantieri ---------- */
+  const CN = id => $("#cn_"+id);
+  function findCantiere(name){ const n=(name||"").trim().toLowerCase(); return cantieri.find(c=>(c.nome||"").toLowerCase()===n); }
+  function allCantiereNames(){
+    return [...new Set(cantieri.map(c=>c.nome).concat(reports.map(r=>r.luogo)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"it"));
+  }
+  function renderCantieri(){
+    $("#cantieriList").innerHTML = allCantiereNames().map(n=>`<option value="${esc(n)}">`).join("");
+    if(!isOwner()) return;
+    const list=$("#cnList"), sorted=[...cantieri].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","it"));
+    if(!sorted.length){ list.innerHTML='<div class="empty"><p>Nessun cantiere ancora. Aggiungilo qui sopra: lo ritroverai già pronto quando compili un rapportino.</p></div>'; return; }
+    list.innerHTML='<div class="list">'+sorted.map(c=>{
+      const n=reports.filter(r=>(r.luogo||"").toLowerCase()===(c.nome||"").toLowerCase()).length;
+      return `<button class="item" type="button" data-cnid="${esc(c.id)}" style="grid-template-columns:1fr auto">
+        <div style="min-width:0"><div class="t">${esc(c.nome)}</div>${c.ind?`<div class="s">${esc(c.ind)}</div>`:""}${c.nota?`<div class="s">📝 ${esc(c.nota)}</div>`:""}</div>
+        <div class="s">${n} ${n===1?"rapportino":"rapportini"}</div></button>`;}).join("")+'</div>';
+    list.querySelectorAll("[data-cnid]").forEach(b=>b.onclick=()=>editCantiere(b.dataset.cnid));
+  }
+  function resetCantiereForm(){
+    editingCantiere=null; ["nome","ind","nota"].forEach(k=>CN(k).value="");
+    $("#cnTitle").textContent="Nuovo cantiere"; $("#cnSave").textContent="Aggiungi cantiere";
+    $("#cnDel").classList.add("hidden"); $("#cnCancel").classList.add("hidden");
+  }
+  function editCantiere(id){
+    const c=cantieri.find(x=>x.id===id); if(!c) return; editingCantiere=id;
+    ["nome","ind","nota"].forEach(k=>CN(k).value=c[k]||"");
+    $("#cnTitle").textContent="Modifica cantiere"; $("#cnSave").textContent="Salva modifiche";
+    $("#cnDel").classList.remove("hidden"); $("#cnCancel").classList.remove("hidden");
+    window.scrollTo(0,0); CN("nome").focus();
+  }
+  $("#cantieriBtn").onclick=()=>{ resetCantiereForm(); renderCantieri(); go("Cantieri"); CN("nome").focus(); };
+  $("#cnCancel").onclick=resetCantiereForm;
+  $("#cnSave").onclick=async()=>{
+    const nome=CN("nome").value.trim();
+    if(!nome){ toast("Inserisci il nome del cantiere."); CN("nome").focus(); return; }
+    const dup=findCantiere(nome); if(dup && dup.id!==editingCantiere){ toast("Questo cantiere è già nell'elenco."); return; }
+    const c={id:editingCantiere||("cn"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), nome, ind:CN("ind").value.trim(), nota:CN("nota").value.trim()};
+    try{ await persistCantiere(c); toast(editingCantiere?"Cantiere salvato":"Cantiere aggiunto"); resetCantiereForm(); }
+    catch(e){ toast("Salvataggio non riuscito. Riprova."); }
+  };
+  $("#cnDel").onclick=async()=>{
+    if(!editingCantiere||!confirm("Eliminare il cantiere dall'elenco? I rapportini già fatti restano.")) return;
+    try{ await removeCantiere(editingCantiere); toast("Cantiere eliminato"); resetCantiereForm(); }catch(e){ toast("Eliminazione non riuscita. Riprova."); }
+  };
+
+  /* ---------- Selettore cantiere dall'elenco (stesso meccanismo del selettore cliente) ---------- */
+  let cantierePickerTarget = null;
+  function ensureCantierePicker(){
+    let box=$("#cantierePicker");
+    if(!box){
+      box=document.createElement("div"); box.id="cantierePicker"; box.className="lightbox hidden";
+      box.innerHTML=`<div class="sheet" style="width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <h3 style="flex:1;margin:0">Scegli cantiere</h3>
+          <button type="button" class="btn ghost iconbtn" id="cantierePickerClose" aria-label="Chiudi">✕</button>
+        </div>
+        <input id="cantierePickerSearch" type="search" placeholder="Cerca cantiere…" style="margin-bottom:10px" autocomplete="off">
+        <div id="cantierePickerList" style="overflow-y:auto"></div>
+      </div>`;
+      box.addEventListener("click", e=>{ if(e.target===box) closeCantierePicker(); });
+      document.body.appendChild(box);
+      $("#cantierePickerClose").onclick=closeCantierePicker;
+      $("#cantierePickerSearch").addEventListener("input", e=>renderCantierePickerList(e.target.value));
+    }
+    return box;
+  }
+  function renderCantierePickerList(q){
+    const query=(q||"").trim().toLowerCase();
+    const names=allCantiereNames();
+    const filtered = query ? names.filter(n=>n.toLowerCase().includes(query)) : names;
+    const wrap=$("#cantierePickerList");
+    if(!names.length){ wrap.innerHTML='<p class="s" style="color:var(--muted);padding:8px 0">Nessun cantiere ancora: scrivi il nome direttamente nel campo.</p>'; return; }
+    if(!filtered.length){ wrap.innerHTML='<p class="s" style="color:var(--muted);padding:8px 0">Nessun cantiere trovato.</p>'; return; }
+    wrap.innerHTML='<div class="list">'+filtered.map(n=>`<button type="button" class="item" style="grid-template-columns:1fr" data-name="${esc(n)}"><div class="t">${esc(n)}</div></button>`).join("")+'</div>';
+    wrap.querySelectorAll("[data-name]").forEach(b=>b.onclick=()=>{
+      const el=cantierePickerTarget && document.getElementById(cantierePickerTarget);
+      if(el){ el.value=b.dataset.name; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); }
+      closeCantierePicker();
+    });
+  }
+  function openCantierePicker(targetInputId){
+    cantierePickerTarget=targetInputId;
+    const box=ensureCantierePicker();
+    $("#cantierePickerSearch").value="";
+    renderCantierePickerList("");
+    box.classList.remove("hidden");
+    setTimeout(()=>{ try{ $("#cantierePickerSearch").focus(); }catch(e){} }, 50);
+  }
+  function closeCantierePicker(){ const box=$("#cantierePicker"); if(box) box.classList.add("hidden"); cantierePickerTarget=null; }
+  document.querySelectorAll("[data-pick-cantiere]").forEach(b=>b.addEventListener("click", ()=>openCantierePicker(b.dataset.pickCantiere)));
 
   /* ---------- Operatori ---------- */
   const O = id => $("#o_"+id);
@@ -1977,6 +2150,7 @@ th{color:var(--muted);font-weight:500}
         <dt>Tipo</dt><dd>${esc(r.tipo||"—")} su impianto ${esc((r.impianto||"—").toLowerCase())}</dd>
         ${r.ordine?`<dt>Ordine / commessa</dt><dd>${esc(r.ordine)}</dd>`:""}
         <dt>Cantiere</dt><dd>${esc(r.luogo||"—")}</dd>
+        ${(()=>{const cn=findCantiere(r.luogo); return cn&&cn.nota?`<dt>Nota cantiere</dt><dd>📝 ${esc(cn.nota)}</dd>`:"";})()}
         ${r.mezzo||r.km?`<dt>Mezzo</dt><dd>${esc(r.mezzo||"—")}${r.km?" ("+esc(r.km)+" km)":""}</dd>`:""}
         <dt>Operatori</dt><dd>${esc(r.operatori||"—")}</dd>
         <dt>Orario</dt><dd>${r.inizio&&r.fine?esc(r.inizio)+" – "+esc(r.fine):"—"}${r.pausa?" (pausa "+esc(r.pausa)+" min)":""}</dd>
@@ -2137,6 +2311,7 @@ th{color:var(--muted);font-weight:500}
   /* Rendering iniziale: eseguito qui, dopo che tutte le funzioni e costanti
      necessarie (fmtHM, esc, renderClients, renderOperators, ecc.) sono state definite. */
   renderClients();
+  renderCantieri();
   renderOperators();
   renderMezzi();
   renderAppointments();
