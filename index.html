@@ -64,6 +64,9 @@ header.top .dropdown .btn.ghost{color:var(--ink);border-color:transparent}
 .summary .sub{color:var(--muted)}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 .filters input,.filters select{flex:1 1 180px}
+.dayfilter{display:flex;gap:6px;flex:1 1 180px;align-items:center}
+.dayfilter input{flex:1;min-width:0}
+.dayfilter .btn{flex:none;padding:10px 14px}
 
 input,textarea,select{width:100%;background:var(--field);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;min-height:44px}
 textarea{min-height:110px;resize:vertical}
@@ -209,6 +212,10 @@ th{color:var(--muted);font-weight:500}
     <div class="filters">
       <input id="q" type="search" placeholder="Cerca cliente, cantiere, commessa…" aria-label="Cerca">
       <select id="month" aria-label="Mese"></select>
+      <div class="dayfilter">
+        <input id="day" type="date" aria-label="Giorno">
+        <button type="button" class="btn ghost hidden" id="dayClear" aria-label="Togli filtro giorno">✕</button>
+      </div>
       <div style="flex:0 1 90px"><label for="ivaPct" style="font-size:.8rem;margin-bottom:2px">IVA %</label><input id="ivaPct" type="number" min="0" max="100" step="0.5" value="22" inputmode="decimal"></div>
     </div>
     <div id="list"></div>
@@ -1273,7 +1280,7 @@ th{color:var(--muted);font-weight:500}
     });
     if(!files.length){ toast("Nessuna foto nei rapportini selezionati."); return; }
     try{
-      downloadBlob(buildZip(files), "foto-rapportini-"+($("#month").value||today())+".zip");
+      downloadBlob(buildZip(files), "foto-rapportini-"+($("#day").value||$("#month").value||today())+".zip");
       toast("Scaricate "+files.length+(files.length===1?" foto.":" foto."));
     }catch(e){ toast("Download non riuscito."); }
   }
@@ -1313,9 +1320,10 @@ th{color:var(--muted);font-weight:500}
   /* ---------- Lista ---------- */
   let openClient = null;
   function filtered(){
-    const q = $("#q").value.trim().toLowerCase(), mo = $("#month").value;
+    const q = $("#q").value.trim().toLowerCase(), day = $("#day").value, mo = day ? "" : $("#month").value;
     return reports
       .filter(r => openClient===null || (r.cliente||"Senza cliente")===openClient)
+      .filter(r => !day || (r.data||"")===day)
       .filter(r => !mo || (r.data||"").startsWith(mo))
       .filter(r => !q || [r.cliente,r.luogo,r.operatori,r.desc,r.ordine,r.tipo,r.impianto].join(" ").toLowerCase().includes(q))
       .sort((a,b)=> (b.data||"").localeCompare(a.data||"") || (b.inizio||"").localeCompare(a.inizio||""));
@@ -1476,7 +1484,14 @@ th{color:var(--muted);font-weight:500}
   }
   $("#backToAllClients").addEventListener("click", ()=>{ openClient=null; render(); });
   $("#q").addEventListener("input",render);
-  $("#month").addEventListener("change",render);
+  $("#month").addEventListener("change",()=>{ if($("#month").value){ $("#day").value=""; $("#dayClear").classList.add("hidden"); } render(); });
+  $("#day").addEventListener("change",()=>{
+    const d=$("#day").value;
+    $("#dayClear").classList.toggle("hidden", !d);
+    if(d) $("#month").value="";
+    render();
+  });
+  $("#dayClear").addEventListener("click",()=>{ $("#day").value=""; $("#dayClear").classList.add("hidden"); render(); });
   $("#ivaPct").value = ivaPct;
   $("#ivaPct").addEventListener("input",()=>{
     const v=Number($("#ivaPct").value);
@@ -2310,7 +2325,7 @@ th{color:var(--muted);font-weight:500}
       const conCosti=tariffaAttuale||matCostOf(r);
       return [r.numero,fmtDate(r.data),r.cliente,r.tipo,r.impianto,r.ordine,r.luogo,r.operatori,r.compilatore||"",r.inizio,r.fine,r.pausa,fmtDec(minutesOf(r)),tariffaAttuale||"",tariffaAttuale?fmtMoneyDec(costOf(r)):"",matCostOf(r)?fmtMoneyDec(matCostOf(r)):"",conCosti?fmtMoneyDec(netOf(r)):"",conCosti?fmtPct(ivaPct):"",conCosti?fmtMoneyDec(ivaOf(r)):"",conCosti?fmtMoneyDec(grossOf(r)):"",r.stato,r.desc,(r.materiali||[]).map(m=>`${m.nome} ${m.qta||""} ${m.um||""}${m.prezzo?" @€"+fmtMoneyDec(Number(m.prezzo)):""}`.trim()).join(", "),(r.verifiche||[]).join(", "),r.iso,r.terra,r.diff,r.dico?"sì":"no",r.km,r.mezzo,r.climaMarca,r.climaModello,r.climaMatricola,r.climaTipoImpianto,r.climaUnitaInterne,r.climaPotenza,r.climaGasTipo,r.climaGasQta,r.note,(r.foto||[]).length||"",r.firma?"sì":"no"].map(q).join(";");
     }));
-    const csv="﻿"+lines.join("\r\n"), name="rapportini-"+($("#month").value||today())+".csv";
+    const csv="﻿"+lines.join("\r\n"), name="rapportini-"+($("#day").value||$("#month").value||today())+".csv";
     if(downloads){
       try{ await downloads.save({filename:name,data:csv}); }
       catch(e){ if(e&&e.code!=="cancelled") toast("Esportazione non riuscita."); }
